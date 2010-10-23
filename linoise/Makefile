@@ -9,7 +9,7 @@
 
 include $(GOROOT)/src/Make.inc
 
-TARG=linoise
+TARG=github.com/kless/go-linoise/linoise
 GOFILES=\
 	buffer.go\
 	error.go\

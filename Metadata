@@ -2,14 +2,14 @@
 
 [Main]
 version: 
-summary: 
-download-url: 
+summary: Library for line editing
+download-url: git://github.com/kless/go-linoise.git
 author: John Mac
 author-email: charles.beck@sent.com
 
 [Optional]
-home-page: 
-keywords: 
+home-page: http://github.com/kless/go-linoise
+keywords: line, editor, unix, history
 
 [CORE]
 metadata-version: 1.1
