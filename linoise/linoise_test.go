@@ -11,7 +11,6 @@ package linoise
 
 import (
 	"fmt"
-	"os"
 	"testing"
 
 	"github.com/kless/go-term/term"
@@ -19,7 +18,7 @@ import (
 
 
 func Test(t *testing.T) {
-	term.MakeRaw(Input.(*os.File).Fd())
+	term.MakeRaw(Input.Fd())
 	defer term.RestoreTermios()
 
 	hist, err := NewHistory("/tmp/go-history")

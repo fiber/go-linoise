@@ -12,7 +12,6 @@ package linoise
 import (
 	"bufio"
 	"fmt"
-	"io"
 	"os"
 	"utf8"
 )
@@ -20,8 +19,8 @@ import (
 
 // Values by default
 var (
-	Input  io.Reader = os.Stdin
-	Output io.Writer = os.Stdout
+	Input  = os.Stdin
+	Output = os.Stdout
 )
 
 // ASCII codes
@@ -35,12 +34,6 @@ var (
 	cursorToleft   = []byte("\033[0G")        // Cursor to left edge.
 	delScreen      = []byte("\033[2J")        // Erase the screen.
 	toleftDelRight = []byte("\033[0K\033[0G") // Cursor to left; erase to right.
-)
-
-// Characters to print in case of interrumption
-var (
-	ctrl_c = []byte("^C")
-	ctrl_d = []byte("^D")
 )
 
 
@@ -143,6 +136,7 @@ func (ln *line) Run() (err os.Error) {
 			}
 
 		case 9: // horizontal tab
+			//!!! disabled by now
 			continue
 
 		case 13: // enter
