@@ -71,19 +71,15 @@ func NewHistorySize(filename string, size int) (*history, os.Error) {
 
 // Adds a new line, except when:
 // + it starts with some space
-// + it's the same line than the previous one
 func (h *history) Add(line string) {
 	if strings.HasPrefix(line, " ") {
 		return
 	}
-
-	// Check the last line.
-	_line := strings.TrimSpace(line)
-	if _line == "" || _line == h.rng.Prev().Value {
+	if line = strings.TrimSpace(line); line == "" {
 		return
 	}
 
-	h.rng.Value = _line
+	h.rng.Value = line
 	h.rng = h.rng.Next()
 
 	if h.Len < h.Cap {
