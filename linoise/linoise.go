@@ -68,7 +68,7 @@ func NewLine(hist *history, prompt string) *line {
 // ===
 
 // Returns a slice of the contents of the buffer.
-func (ln *line) Bytes() []byte { return ln.data }
+func (ln *line) Bytes() []byte { return ln.data[:ln.size] }
 
 // Returns the contents of the buffer as a string.
 func (ln *line) String() string { return string(ln.data[:ln.size]) }
@@ -81,7 +81,7 @@ func (ln *line) Refresh() (err os.Error) {
 	if _, err = fmt.Fprint(Output, ln.prompt); err != nil {
 		return
 	}
-	if _, err = Output.Write(ln.Bytes()[:ln.size]); err != nil {
+	if _, err = Output.Write(ln.Bytes()); err != nil {
 		return
 	}
 	if _, err = Output.Write(toleftDelRight); err != nil {
@@ -131,29 +131,29 @@ func (ln *line) Run() (err os.Error) {
 
 		case 13: // enter
 			ln.hist.Add(ln.String())
-			goto deleteLine
+			goto _deleteLine
 
 		case 127, 8: // backspace, Ctrl-h
 			if ln.DeleteLast() {
-				goto refresh
+				goto _refresh
 			}
 
 		case 20: // Ctrl-t //!!! add
 			continue
 
 		case 2: // Ctrl-b
-			goto leftArrow
+			goto _leftArrow
 
 		case 6: // Ctrl-f
-			goto rightArrow
+			goto _rightArrow
 
 		case 16: // Ctrl-p
 			seq[1] = 65
-			goto upDownArrow
+			goto _upDownArrow
 
 		case 14: // Ctrl-n
 			seq[1] = 66
-			goto upDownArrow
+			goto _upDownArrow
 
 		case 3, 4: // Ctrl-c, Ctrl-d
 			if rune == 3 {
@@ -176,11 +176,11 @@ func (ln *line) Run() (err os.Error) {
 			if seq[0] == _L_BRACKET {
 				switch seq[1] {
 				case 68:
-					goto leftArrow
+					goto _leftArrow
 				case 67:
-					goto rightArrow
+					goto _rightArrow
 				case 65, 66:
-					goto upDownArrow
+					goto _upDownArrow
 				}
 
 				// Extended escape.
@@ -191,42 +191,42 @@ func (ln *line) Run() (err os.Error) {
 					//!!! doesn't works
 					if seq[1] == 51 && seq2[0] == 126 { // Delete
 						if ln.DeleteNext() {
-							goto refresh
+							goto _refresh
 						}
 					}
 				}
 			}
 
 		case 21: // Ctrl+u, delete the whole line.
-			goto deleteLine
+			goto _deleteLine
 
 		case 11: // Ctrl+k, delete from current to end of line.
 			ln.size = ln.cursor
-			goto refresh
+			goto _refresh
 
 		case 1: // Ctrl+a, go to the start of the line.
 			ln.cursor = 0
-			goto refresh
+			goto _refresh
 
 		case 5: // Ctrl+e, go to the end of the line.
 			ln.cursor = ln.size
-			goto refresh
+			goto _refresh
 		}
 		continue
 
-	leftArrow:
+	_leftArrow:
 		if ln.CursorToleft() {
-			goto refresh
+			goto _refresh
 		}
 		continue
 
-	rightArrow:
+	_rightArrow:
 		if ln.CursorToright() {
-			goto refresh
+			goto _refresh
 		}
 		continue
 
-	upDownArrow:
+	_upDownArrow:
 		if ln.hist.Len > 1 {
 			// Update the current history entry before to overwrite it with tne
 			// next one.
@@ -234,11 +234,11 @@ func (ln *line) Run() (err os.Error) {
 		}
 		continue
 
-	deleteLine:
+	_deleteLine:
 		ln.cursor, ln.size = 0, 0
-		goto refresh
+		//goto _refresh
 
-	refresh:
+	_refresh:
 		if err = ln.Refresh(); err != nil {
 			return
 		}
