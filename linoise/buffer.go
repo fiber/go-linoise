@@ -38,12 +38,16 @@ func newBuffer() *buffer {
 // ===
 
 
-// Inserts a character in the cursor position.
-func (b *buffer) Insert(rune int) (useRefresh bool, err os.Error) {
-	// Grow buffer to guarantee space for one more byte.
-	if b.size+1 > len(b.data) {
+// Grows buffer to guarantee space for n more byte.
+func (b *buffer) grow(n int) {
+	for n > len(b.data) {
 		b.data = b.data[:len(b.data)+Length]
 	}
+}
+
+// Inserts a character in the cursor position.
+func (b *buffer) Insert(rune int) (useRefresh bool, err os.Error) {
+	b.grow(b.size+1) // Check if there is free space for one more character
 
 	// Avoid a full update of the line.
 	if b.cursor == b.size {
@@ -92,8 +96,8 @@ func (b *buffer) Delete() bool {
 	return false
 }
 
-// Deletes the last character from cursor.
-func (b *buffer) DeleteLast() bool {
+// Deletes the previous character from cursor.
+func (b *buffer) DeletePrev() bool {
 	if b.cursor > 0 {
 		copy(b.data[b.cursor-1:], b.data[b.cursor:b.size])
 		b.cursor--
