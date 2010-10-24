@@ -17,6 +17,12 @@ import (
 )
 
 
+// Values by default
+var (
+	Input  io.Reader = os.Stdin
+	Output io.Writer = os.Stdout
+)
+
 // ASCII codes
 const (
 	_ESC       = 27 // Escape: Ctrl-[ (033 in octal)
@@ -42,24 +48,18 @@ var (
 
 // Represents a line.
 type line struct {
-//	cursor    int      // Location pointer into buffer
 	promptLen int      // Prompt size
 	prompt    string   // Primary prompt
-	//data      *buffer  // Text buffer
-	*buffer  // Text buffer
+	*buffer            // Text buffer
 	hist      *history // History file
-	input     io.Reader
-	output    io.Writer
 }
 
-func NewLine(in io.Reader, out io.Writer, hist *history, prompt string) *line {
+func NewLine(hist *history, prompt string) *line {
 	return &line{
 		len(prompt),
 		prompt,
 		newBuffer(),
 		hist,
-		in,
-		out,
 	}
 }
 
@@ -75,20 +75,20 @@ func (ln *line) String() string { return string(ln.data[:ln.size]) }
 
 // Refreshes the line.
 func (ln *line) Refresh() (err os.Error) {
-	if _, err = ln.output.Write(cursorToleft); err != nil {
+	if _, err = Output.Write(cursorToleft); err != nil {
 		return
 	}
-	if _, err = fmt.Fprint(ln.output, ln.prompt); err != nil {
+	if _, err = fmt.Fprint(Output, ln.prompt); err != nil {
 		return
 	}
-	if _, err = ln.output.Write(ln.Bytes()[:ln.size]); err != nil {
+	if _, err = Output.Write(ln.Bytes()[:ln.size]); err != nil {
 		return
 	}
-	if _, err = ln.output.Write(toleftDelRight); err != nil {
+	if _, err = Output.Write(toleftDelRight); err != nil {
 		return
 	}
 	// Move cursor to original position.
-	_, err = fmt.Fprintf(ln.output, "\033[%dC", ln.promptLen+ln.cursor)
+	_, err = fmt.Fprintf(Output, "\033[%dC", ln.promptLen+ln.cursor)
 
 	return
 }
@@ -99,14 +99,13 @@ func (ln *line) Refresh() (err os.Error) {
 
 func (ln *line) Run() (err os.Error) {
 	// Print the primary prompt.
-	if _, err = fmt.Fprint(ln.output, ln.prompt); err != nil {
+	if _, err = fmt.Fprint(Output, ln.prompt); err != nil {
 		return
 	}
 
-	in := bufio.NewReader(ln.input) // Read input.
-	buf := newBuffer()  // Store characters entered.
-	seq := make([]byte, 2)  // For escape sequences.
-	seq2 := make([]byte, 2) // Extended escape sequences.
+	in := bufio.NewReader(Input) // Read input.
+	seq := make([]byte, 2)       // For escape sequences.
+	seq2 := make([]byte, 2)      // Extended escape sequences.
 
 	for {
 		rune, runeSize, err := in.ReadRune()
@@ -116,10 +115,16 @@ func (ln *line) Run() (err os.Error) {
 
 		switch rune {
 		default:
-			if err = buf.InsertRune(rune, runeSize); err != nil {
+			useRefresh, err := ln.InsertRune(rune, runeSize)
+			if err != nil {
 				return
 			}
-			continue
+
+			if useRefresh {
+				if err = ln.Refresh(); err != nil {
+					return
+				}
+			}
 
 		case 9: // horizontal tab
 			continue
@@ -129,10 +134,9 @@ func (ln *line) Run() (err os.Error) {
 			goto deleteLine
 
 		case 127, 8: // backspace, Ctrl-h
-			if buf.DeleteLast() {
+			if ln.DeleteLast() {
 				goto refresh
 			}
-			continue
 
 		case 20: // Ctrl-t //!!! add
 			continue
@@ -153,10 +157,10 @@ func (ln *line) Run() (err os.Error) {
 
 		case 3, 4: // Ctrl-c, Ctrl-d
 			if rune == 3 {
-				buf.InsertByte(ctrl_c)
+				ln.InsertByte(ctrl_c)
 				err = ErrCtrlC
 			} else {
-				buf.InsertByte(ctrl_d)
+				ln.InsertByte(ctrl_d)
 				err = ErrCtrlD
 			}
 
@@ -184,12 +188,11 @@ func (ln *line) Run() (err os.Error) {
 					if _, err = in.Read(seq2); err != nil {
 						return
 					}
-//!!! doesn't works
+					//!!! doesn't works
 					if seq[1] == 51 && seq2[0] == 126 { // Delete
-						if buf.DeleteNext() {
+						if ln.DeleteNext() {
 							goto refresh
 						}
-						continue
 					}
 				}
 			}
@@ -198,26 +201,27 @@ func (ln *line) Run() (err os.Error) {
 			goto deleteLine
 
 		case 11: // Ctrl+k, delete from current to end of line.
-			buf.size = buf.cursor
+			ln.size = ln.cursor
 			goto refresh
 
 		case 1: // Ctrl+a, go to the start of the line.
-			buf.cursor = 0
+			ln.cursor = 0
 			goto refresh
 
 		case 5: // Ctrl+e, go to the end of the line.
-			buf.cursor = buf.size
+			ln.cursor = ln.size
 			goto refresh
 		}
+		continue
 
 	leftArrow:
-		if buf.CursorToleft() {
+		if ln.CursorToleft() {
 			goto refresh
 		}
 		continue
 
 	rightArrow:
-		if buf.CursorToright() {
+		if ln.CursorToright() {
 			goto refresh
 		}
 		continue
@@ -226,13 +230,13 @@ func (ln *line) Run() (err os.Error) {
 		if ln.hist.Len > 1 {
 			// Update the current history entry before to overwrite it with tne
 			// next one.
-			
+
 		}
 		continue
 
 	deleteLine:
-		buf.cursor, buf.size = 0, 0
-		//goto refresh
+		ln.cursor, ln.size = 0, 0
+		goto refresh
 
 	refresh:
 		if err = ln.Refresh(); err != nil {

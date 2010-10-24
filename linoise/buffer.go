@@ -46,20 +46,18 @@ func (b *buffer) grow(n int) {
 }
 
 // Base to insert characters immediately after the cursor position.
-func (b *buffer) _baseInsert(chars []byte) (err os.Error) {
+func (b *buffer) _Insert(chars []byte) (useRefresh bool, err os.Error) {
 	b.grow(len(chars)) // Check the free space.
 
 	// Avoid a full update of the line.
 	if b.cursor == b.size {
-		if _, err = b.output.Write(chars); err != nil {
+		if _, err = Output.Write(chars); err != nil {
 			return
 		}
 	} else {
+		useRefresh = true
 		copy(b.data[b.cursor+len(chars):b.size+len(chars)],
 			b.data[b.cursor:b.size])
-		if err = b.RefreshOutput(); err != nil {
-			return
-		}
 	}
 
 	for _, v := range chars {
@@ -71,21 +69,17 @@ func (b *buffer) _baseInsert(chars []byte) (err os.Error) {
 }
 
 // Inserts a byte after of cursor.
-func (b *buffer) InsertByte(chars []byte) (err os.Error) {
-	if err = b._baseInsert(chars); err != nil {
-		return
-	}
+func (b *buffer) InsertByte(chars []byte) (useRefresh bool, err os.Error) {
+	useRefresh, err = b._Insert(chars)
 	return
 }
 
 // Inserts an unicode character after of cursor.
-func (b *buffer) InsertRune(rune, runeSize int) (err os.Error) {
+func (b *buffer) InsertRune(rune, runeSize int) (useRefresh bool, err os.Error) {
 	runeEncoded := make([]byte, runeSize)
 	utf8.EncodeRune(rune, runeEncoded)
 
-	if err = b._baseInsert(runeEncoded); err != nil {
-		return
-	}
+	useRefresh, err = b._Insert(runeEncoded)
 	return
 }
 
