@@ -27,13 +27,13 @@ var (
 
 // Represents the line buffer.
 type buffer struct {
-	size   int    // Amount of characters added
-	cursor int    // Location pointer into buffer
-	data   []byte // Text buffer
+	size   int   // Amount of characters added
+	cursor int   // Location pointer into buffer
+	data   []int // Text buffer
 }
 
 func newBuffer() *buffer {
-	return &buffer{0, 0, make([]byte, Length, Capacity)}
+	return &buffer{0, 0, make([]int, Length, Capacity)}
 }
 // ===
 
@@ -45,41 +45,26 @@ func (b *buffer) grow(n int) {
 	}
 }
 
-// Base to insert characters immediately after the cursor position.
-func (b *buffer) _Insert(chars []byte) (useRefresh bool, err os.Error) {
-	b.grow(len(chars)) // Check the free space.
+// Inserts a character in the cursor position.
+func (b *buffer) Insert(rune int) (useRefresh bool, err os.Error) {
+	b.grow(1) // Check the free space.
 
 	// Avoid a full update of the line.
 	if b.cursor == b.size {
-		if _, err = Output.Write(chars); err != nil {
+		runeInbyte := make([]byte, utf8.UTFMax)
+		utf8.EncodeRune(rune, runeInbyte)
+		if _, err = Output.Write(runeInbyte); err != nil {
 			return
 		}
 	} else {
 		useRefresh = true
-		copy(b.data[b.cursor+len(chars):b.size+len(chars)],
-			b.data[b.cursor:b.size])
+		copy(b.data[b.cursor+1:b.size+1], b.data[b.cursor:b.size])
 	}
 
-	for _, v := range chars {
-		b.data[b.cursor] = v
-		b.cursor ++
-		b.size ++
-	}
-	return
-}
+	b.data[b.cursor] = rune
+	b.cursor ++
+	b.size ++
 
-// Inserts a byte after of cursor.
-func (b *buffer) InsertByte(chars []byte) (useRefresh bool, err os.Error) {
-	useRefresh, err = b._Insert(chars)
-	return
-}
-
-// Inserts an unicode character after of cursor.
-func (b *buffer) InsertRune(rune, runeSize int) (useRefresh bool, err os.Error) {
-	runeEncoded := make([]byte, runeSize)
-	utf8.EncodeRune(rune, runeEncoded)
-
-	useRefresh, err = b._Insert(runeEncoded)
 	return
 }
 

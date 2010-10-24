@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"utf8"
 )
 
 
@@ -68,7 +69,22 @@ func NewLine(hist *history, prompt string) *line {
 // ===
 
 // Returns a slice of the contents of the buffer.
-func (ln *line) Bytes() []byte { return ln.data[:ln.size] }
+func (ln *line) Bytes() []byte {
+	chars := make([]byte, ln.size*utf8.UTFMax)
+	var end, runeLen int
+
+	// === Each character (as integer) is encoded to []byte
+	for i := 0; i < ln.size; i++ {
+		if i != 0 {
+			runeLen = utf8.EncodeRune(ln.data[i], chars[end:])
+			end += runeLen
+		} else {
+			runeLen = utf8.EncodeRune(ln.data[i], chars)
+			end = runeLen
+		}
+	}
+	return chars[:end]
+}
 
 // Returns the contents of the buffer as a string.
 func (ln *line) String() string { return string(ln.data[:ln.size]) }
@@ -108,14 +124,14 @@ func (ln *line) Run() (err os.Error) {
 	seq2 := make([]byte, 2)      // Extended escape sequences.
 
 	for {
-		rune, runeSize, err := in.ReadRune()
+		rune, _, err := in.ReadRune()
 		if err != nil {
 			return
 		}
 
 		switch rune {
 		default:
-			useRefresh, err := ln.InsertRune(rune, runeSize)
+			useRefresh, err := ln.Insert(rune)
 			if err != nil {
 				return
 			}
@@ -157,10 +173,12 @@ func (ln *line) Run() (err os.Error) {
 
 		case 3, 4: // Ctrl-c, Ctrl-d
 			if rune == 3 {
-				ln.InsertByte(ctrl_c)
+				ln.Insert('^')
+				ln.Insert('C')
 				err = ErrCtrlC
 			} else {
-				ln.InsertByte(ctrl_d)
+				ln.Insert('^')
+				ln.Insert('D')
 				err = ErrCtrlD
 			}
 
