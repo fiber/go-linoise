@@ -38,22 +38,18 @@ func newBuffer() *buffer {
 // ===
 
 
-// Grows buffer to guarantee space for n more bytes.
-func (b *buffer) grow(n int) {
-	if b.size+n > len(b.data) {
-		b.data = b.data[:len(b.data)+Length]
-	}
-}
-
 // Inserts a character in the cursor position.
 func (b *buffer) Insert(rune int) (useRefresh bool, err os.Error) {
-	b.grow(1) // Check the free space.
+	// Grow buffer to guarantee space for one more byte.
+	if b.size+1 > len(b.data) {
+		b.data = b.data[:len(b.data)+Length]
+	}
 
 	// Avoid a full update of the line.
 	if b.cursor == b.size {
-		runeInbyte := make([]byte, utf8.UTFMax)
-		utf8.EncodeRune(rune, runeInbyte)
-		if _, err = Output.Write(runeInbyte); err != nil {
+		char := make([]byte, utf8.UTFMax)
+		utf8.EncodeRune(rune, char)
+		if _, err = Output.Write(char); err != nil {
 			return
 		}
 	} else {
@@ -69,7 +65,7 @@ func (b *buffer) Insert(rune int) (useRefresh bool, err os.Error) {
 }
 
 // Moves the cursor one character backward.
-func (b *buffer) CursorToleft() bool {
+func (b *buffer) Left() bool {
 	if b.cursor > 0 {
 		b.cursor--
 		return true
@@ -78,9 +74,19 @@ func (b *buffer) CursorToleft() bool {
 }
 
 // Moves the cursor one character forward.
-func (b *buffer) CursorToright() bool {
+func (b *buffer) Right() bool {
 	if b.cursor < b.size {
 		b.cursor++
+		return true
+	}
+	return false
+}
+
+// Deletes the character in cursor.
+func (b *buffer) Delete() bool {
+	if b.size > 0 && b.cursor < b.size {
+		copy(b.data[b.cursor:], b.data[b.cursor+1:b.size])
+		b.size--
 		return true
 	}
 	return false
@@ -91,16 +97,6 @@ func (b *buffer) DeleteLast() bool {
 	if b.cursor > 0 {
 		copy(b.data[b.cursor-1:], b.data[b.cursor:b.size])
 		b.cursor--
-		b.size--
-		return true
-	}
-	return false
-}
-
-// Deletes the next character from cursor.
-func (b *buffer) DeleteNext() bool {
-	if b.size > 0 && b.cursor < b.size {
-		copy(b.data[b.cursor:], b.data[b.cursor+1:b.size])
 		b.size--
 		return true
 	}

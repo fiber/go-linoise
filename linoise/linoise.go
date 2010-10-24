@@ -208,7 +208,7 @@ func (ln *line) Run() (err os.Error) {
 					}
 					//!!! doesn't works
 					if seq[1] == 51 && seq2[0] == 126 { // Delete
-						if ln.DeleteNext() {
+						if ln.Delete() {
 							goto _refresh
 						}
 					}
@@ -233,13 +233,13 @@ func (ln *line) Run() (err os.Error) {
 		continue
 
 	_leftArrow:
-		if ln.CursorToleft() {
+		if ln.Left() {
 			goto _refresh
 		}
 		continue
 
 	_rightArrow:
-		if ln.CursorToright() {
+		if ln.Right() {
 			goto _refresh
 		}
 		continue
