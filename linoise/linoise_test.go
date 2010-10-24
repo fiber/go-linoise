@@ -10,19 +10,16 @@
 package linoise
 
 import (
+	"fmt"
 	"os"
 	"testing"
-	"fmt"
 
 	"github.com/kless/go-term/term"
 )
 
 
-var stdin = 0
-
-
 func Test(t *testing.T) {
-	term.MakeRaw(stdin)
+	term.MakeRaw(Input.(*os.File).Fd())
 	defer term.RestoreTermios()
 
 	hist, err := NewHistory("/tmp/go-history")
@@ -31,7 +28,7 @@ func Test(t *testing.T) {
 	}
 	hist.Load()
 
-	ln := NewLine(os.Stdin, os.Stdout, hist, "matrix> ")
+	ln := NewLine(hist, "matrix> ")
 	if err = ln.Run(); err != nil {
 		fmt.Println(err)
 	} else {
