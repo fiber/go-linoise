@@ -38,15 +38,15 @@ func TestSave(t *testing.T) {
 	hist.Add("line without trailing spaces")
 	hist.Add("with trailing tabulator\t")
 	hist.Add("with trailing new line\n")
-	hist.Add(" ")
-	hist.Add(" leading space")
-	hist.Add("")
+	hist.Add(" ")              // Not saved to file
+	hist.Add(" leading space") // Idem
+	hist.Add("")               // Idem
 	hist.Add("line without trailing spaces")
 	hist.Add("line number 6")
 
 	hist.Save()
 
-	historyLen = hist.Len
+	historyLen = hist.Len - 3 // 3 lines should not be saved
 }
 
 func TestLoad(t *testing.T) {

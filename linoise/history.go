@@ -69,16 +69,8 @@ func NewHistorySize(filename string, size int) (*history, os.Error) {
 // ===
 
 
-// Adds a new line, except when:
-// + it starts with some space
+// Adds a new line to the buffer.
 func (h *history) Add(line string) {
-	if strings.HasPrefix(line, " ") {
-		return
-	}
-	if line = strings.TrimSpace(line); line == "" {
-		return
-	}
-
 	h.rng.Value = line
 	h.rng = h.rng.Next()
 
@@ -103,17 +95,27 @@ func (h *history) Load() {
 	}
 }
 
-// Saves to text file.
+// Saves all lines to the text file, excep when:
+// + it starts with some space
+// + it is an empty line
 func (h *history) Save() (err os.Error) {
+	bufout := bufio.NewWriter(h.file)
+
 	if _, err = h.file.Seek(0, 0); err != nil {
 		return
 	}
 
-	bufout := bufio.NewWriter(h.file)
-
 	for v := range h.rng.Iter() {
 		if v != nil {
-			if _, err = bufout.WriteString(v.(string) + "\n"); err != nil {
+			line := v.(string)
+
+			if strings.HasPrefix(line, " ") {
+				continue
+			}
+			if line = strings.TrimSpace(line); line == "" {
+				continue
+			}
+			if _, err = bufout.WriteString(line + "\n"); err != nil {
 				log.Println("history.Save:", err)
 				break
 			}
