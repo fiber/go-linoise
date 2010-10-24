@@ -29,7 +29,7 @@ func TestSave(t *testing.T) {
 		t.Error("could not create history", err)
 	}
 
-	if hist.Cap != hist.r.Len() {
+	if hist.Cap != hist.rng.Len() {
 		t.Error("bad capacity size")
 	}
 
@@ -57,7 +57,7 @@ func TestLoad(t *testing.T) {
 
 	hist.Load()
 
-	for v := range hist.r.Iter() {
+	for v := range hist.rng.Iter() {
 		if v != nil {
 			line := v.(string)
 			if strings.HasSuffix(line, "\n") || strings.HasSuffix(line, "\t") ||

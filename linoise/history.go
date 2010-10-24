@@ -32,7 +32,7 @@ type history struct {
 	Cap, Len int
 	filename string
 	file     *os.File
-	r        *ring.Ring
+	rng      *ring.Ring
 }
 
 
@@ -43,13 +43,13 @@ func _baseHistory(fname string, size int) (*history, os.Error) {
 		return nil, err
 	}
 
-	_history := new(history)
-	_history.filename = fname
-	_history.file = file
-	_history.Cap = size
-	_history.r = ring.New(size)
+	h := new(history)
+	h.filename = fname
+	h.file = file
+	h.Cap = size
+	h.rng = ring.New(size)
 
-	return _history, nil
+	return h, nil
 }
 
 // Creates a new history using the maximum length by default.
@@ -72,28 +72,28 @@ func NewHistorySize(filename string, size int) (*history, os.Error) {
 // Adds a new line, except when:
 // + it starts with some space
 // + it's the same line than the previous one
-func (self *history) Add(line string) {
+func (h *history) Add(line string) {
 	if strings.HasPrefix(line, " ") {
 		return
 	}
 
 	// Check the last line.
 	_line := strings.TrimSpace(line)
-	if _line == "" || _line == self.r.Prev().Value {
+	if _line == "" || _line == h.rng.Prev().Value {
 		return
 	}
 
-	self.r.Value = _line
-	self.r = self.r.Next()
+	h.rng.Value = _line
+	h.rng = h.rng.Next()
 
-	if self.Len < self.Cap {
-		self.Len++
+	if h.Len < h.Cap {
+		h.Len++
 	}
 }
 
 // Loads the history from the file.
-func (self *history) Load() {
-	bufin := bufio.NewReader(self.file)
+func (h *history) Load() {
+	bufin := bufio.NewReader(h.file)
 
 	for {
 		line, err := bufin.ReadString('\n')
@@ -101,17 +101,21 @@ func (self *history) Load() {
 			break
 		}
 
-		self.r.Value = strings.TrimRight(line, "\n")
-		self.r = self.r.Next()
-		self.Len++
+		h.rng.Value = strings.TrimRight(line, "\n")
+		h.rng = h.rng.Next()
+		h.Len++
 	}
 }
 
 // Saves to text file.
-func (self *history) Save() (err os.Error) {
-	bufout := bufio.NewWriter(self.file)
+func (h *history) Save() (err os.Error) {
+	if _, err = h.file.Seek(0, 0); err != nil {
+		return
+	}
 
-	for v := range self.r.Iter() {
+	bufout := bufio.NewWriter(h.file)
+
+	for v := range h.rng.Iter() {
 		if v != nil {
 			if _, err = bufout.WriteString(v.(string) + "\n"); err != nil {
 				log.Println("history.Save:", err)
@@ -124,23 +128,23 @@ func (self *history) Save() (err os.Error) {
 		log.Println("history.Save:", err)
 	}
 
-	self.closeFile()
+	h.closeFile()
 	return
 }
 
 // Closes the file descriptor.
-func (self *history) closeFile() {
-	self.file.Close()
+func (h *history) closeFile() {
+	h.file.Close()
 }
 
 // Opens the file.
-/*func (self *history) openFile() {
+/*func (h *history) openFile() {
 	file, err := os.Open(fname, os.O_CREATE|os.O_RDWR, FilePerm)
 	if err != nil {
 		log.Println("history.openFile:", err)
 		return
 	}
 
-	self.file = file
+	h.file = file
 }*/
 
