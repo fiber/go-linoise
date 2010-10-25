@@ -137,6 +137,7 @@ func (ln *line) Run() (err os.Error) {
 					return
 				}
 			}
+			continue
 
 		case 13: // enter
 			ln.hist.Add(ln.String())
@@ -146,12 +147,10 @@ func (ln *line) Run() (err os.Error) {
 			if ln.DeletePrev() {
 				goto _refresh
 			}
+			continue
 
 		case 9: // horizontal tab
 			//!!! disabled by now
-			continue
-
-		case 20: // Ctrl-t //!!! add
 			continue
 
 		case 3: // Ctrl-c
@@ -209,6 +208,13 @@ func (ln *line) Run() (err os.Error) {
 					goto _end
 				}
 			}
+			continue
+
+		case 20: // Ctrl-t, swap actual character by the previous one.
+			if ln.Swap() {
+				goto _refresh
+			}
+			continue
 
 		case 21: // Ctrl+u, delete the whole line.
 			goto _deleteLine
@@ -237,7 +243,7 @@ func (ln *line) Run() (err os.Error) {
 			seq[1] = 66
 			goto _upDownArrow
 		}
-		continue
+		continue // To be safe.
 
 	_upDownArrow: // Up and down arrow: history
 		// Up
@@ -293,7 +299,6 @@ func (ln *line) Run() (err os.Error) {
 		if err = ln.Refresh(); err != nil {
 			return
 		}
-		continue
 	}
 
 	return

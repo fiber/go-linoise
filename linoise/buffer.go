@@ -107,3 +107,25 @@ func (b *buffer) DeletePrev() bool {
 	return false
 }
 
+// Swaps the actual character by the previous one. If it is the end of the line
+// then it is swapped the 2nd previous by the previous one.
+func (b *buffer) Swap() bool {
+	if b.cursor <= 0 {
+		return false
+	}
+
+	if b.cursor < b.size {
+		aux := b.data[b.cursor-1]
+		b.data[b.cursor-1] = b.data[b.cursor]
+		b.data[b.cursor] = aux
+		b.cursor++
+	// End of line
+	} else {
+		aux := b.data[b.cursor-2]
+		b.data[b.cursor-2] = b.data[b.cursor-1]
+		b.data[b.cursor-1] = aux
+	}
+
+	return true
+}
+
