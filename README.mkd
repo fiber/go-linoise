@@ -76,6 +76,8 @@ To contact, send e-mail through [github][1].
 
 ## Known bugs
 
+The [key "supr"][6] is not working.
+
 To reporting bugs, please login and create a new issue [here][2].
 
 
@@ -102,4 +104,5 @@ see the [commit history][3].
 [3]: http://github.com/kless/go-linoise/commits/master
 [4]: http://github.com/antirez/linenoise
 [5]: http://github.com/kless/go-term
+[6]: http://github.com/kless/go-linoise/blob/master/linoise/linoise.go#L196
 
