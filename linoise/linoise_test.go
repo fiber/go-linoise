@@ -32,8 +32,8 @@ func TestLinoise(t *testing.T) {
 	}
 	hist.Load()
 
-	ln := NewLine(hist, "matrix> ")
-	if err = ln.Run(); err != nil {
+	ln := NewLine(hist, "linoise> ")
+	if err = ln.Run(); err != nil && err != ErrCtrlD {
 		fmt.Println(err)
 	} else {
 		hist.Save()

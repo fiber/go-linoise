@@ -20,8 +20,8 @@ import (
 
 // Values by default
 var (
-	FilePerm   uint32 = 0600 // History file permission
-	HistoryCap = 500         // Capacity
+	HistoryCap  = 500         // Capacity
+	HistoryPerm uint32 = 0600 // History file permission
 )
 
 
@@ -39,7 +39,7 @@ type history struct {
 
 // Base to create an history file.
 func _baseHistory(fname string, size int) (*history, os.Error) {
-	file, err := os.Open(fname, os.O_CREATE|os.O_RDWR, FilePerm)
+	file, err := os.Open(fname, os.O_CREATE|os.O_RDWR, HistoryPerm)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +134,7 @@ func (h *history) closeFile() {
 
 // Re-opens the file.
 /*func (h *history) openFile() {
-	file, err := os.Open(fname, os.O_CREATE|os.O_RDWR, FilePerm)
+	file, err := os.Open(fname, os.O_CREATE|os.O_RDWR, HistoryPerm)
 	if err != nil {
 		log.Println("history.openFile:", err)
 		return

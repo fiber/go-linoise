@@ -17,8 +17,8 @@ import (
 
 // Buffer size
 var (
-	Capacity = 4096
-	Length   = 64 // Initial length
+	BufferCap = 4096
+	BufferLen = 64 // Initial length
 )
 
 
@@ -33,7 +33,7 @@ type buffer struct {
 }
 
 func newBuffer() *buffer {
-	return &buffer{0, 0, make([]int, Length, Capacity)}
+	return &buffer{0, 0, make([]int, BufferLen, BufferCap)}
 }
 // ===
 
@@ -41,13 +41,13 @@ func newBuffer() *buffer {
 // Grows buffer to guarantee space for n more byte.
 func (b *buffer) grow(n int) {
 	for n > len(b.data) {
-		b.data = b.data[:len(b.data)+Length]
+		b.data = b.data[:len(b.data)+BufferLen]
 	}
 }
 
 // Inserts a character in the cursor position.
 func (b *buffer) Insert(rune int) (useRefresh bool, err os.Error) {
-	b.grow(b.size+1) // Check if there is free space for one more character
+	b.grow(b.size + 1) // Check if there is free space for one more character
 
 	// Avoid a full update of the line.
 	if b.cursor == b.size {
@@ -62,8 +62,8 @@ func (b *buffer) Insert(rune int) (useRefresh bool, err os.Error) {
 	}
 
 	b.data[b.cursor] = rune
-	b.cursor ++
-	b.size ++
+	b.cursor++
+	b.size++
 
 	return
 }
@@ -119,7 +119,7 @@ func (b *buffer) Swap() bool {
 		b.data[b.cursor-1] = b.data[b.cursor]
 		b.data[b.cursor] = aux
 		b.cursor++
-	// End of line
+		// End of line
 	} else {
 		aux := b.data[b.cursor-2]
 		b.data[b.cursor-2] = b.data[b.cursor-1]
