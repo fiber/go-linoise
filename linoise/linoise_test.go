@@ -22,7 +22,7 @@ import (
 var linoiseFile = path.Join(os.TempDir(), "go_linoise")
 
 
-func Test(t *testing.T) {
+func TestLinoise(t *testing.T) {
 	term.MakeRaw(Input.Fd())
 	defer term.RestoreTermios()
 

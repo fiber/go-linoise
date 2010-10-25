@@ -11,7 +11,7 @@ package linoise
 
 import (
 	"bufio"
-	"container/ring"
+	"container/list"
 	"log"
 	"os"
 	"strings"
@@ -29,10 +29,11 @@ var (
 // ===
 
 type history struct {
-	Cap, Len int
+	Cap      int
 	filename string
 	file     *os.File
-	rng      *ring.Ring
+	mark     *list.Element // Pointer to the last element added.
+	li       *list.List
 }
 
 
@@ -44,10 +45,10 @@ func _baseHistory(fname string, size int) (*history, os.Error) {
 	}
 
 	h := new(history)
+	h.Cap = size
 	h.filename = fname
 	h.file = file
-	h.Cap = size
-	h.rng = ring.New(size)
+	h.li = list.New()
 
 	return h, nil
 }
@@ -66,63 +67,59 @@ func NewHistorySize(filename string, size int) (*history, os.Error) {
 
 	return _baseHistory(filename, size)
 }
+
+
+// === Access to file
 // ===
-
-
-// Adds a new line to the buffer.
-func (h *history) Add(line string) {
-	h.rng.Value = line
-	h.rng = h.rng.Next()
-
-	if h.Len < h.Cap {
-		h.Len++
-	}
-}
 
 // Loads the history from the file.
 func (h *history) Load() {
-	bufin := bufio.NewReader(h.file)
+	in := bufio.NewReader(h.file)
 
 	for {
-		line, err := bufin.ReadString('\n')
+		line, err := in.ReadString('\n')
 		if err == os.EOF {
 			break
 		}
 
-		h.rng.Value = strings.TrimRight(line, "\n")
-		h.rng = h.rng.Next()
-		h.Len++
+		h.li.PushBack(strings.TrimRight(line, "\n"))
 	}
+
+	h.mark = h.li.Back() // Point to an element.
 }
 
 // Saves all lines to the text file, excep when:
 // + it starts with some space
 // + it is an empty line
 func (h *history) Save() (err os.Error) {
-	bufout := bufio.NewWriter(h.file)
-
 	if _, err = h.file.Seek(0, 0); err != nil {
 		return
 	}
 
-	for v := range h.rng.Iter() {
-		if v != nil {
-			line := v.(string)
+	out := bufio.NewWriter(h.file)
+	element := h.li.Front() // Get the first element.
 
-			if strings.HasPrefix(line, " ") {
-				continue
-			}
-			if line = strings.TrimSpace(line); line == "" {
-				continue
-			}
-			if _, err = bufout.WriteString(line + "\n"); err != nil {
-				log.Println("history.Save:", err)
-				break
-			}
+	for i := 0; i < h.li.Len(); i++ {
+		line := element.Value.(string)
+
+		if strings.HasPrefix(line, " ") {
+			goto _next
+		}
+		if line = strings.TrimSpace(line); line == "" {
+			goto _next
+		}
+		if _, err = out.WriteString(line + "\n"); err != nil {
+			log.Println("history.Save:", err)
+			break
+		}
+
+	_next:
+		if element = element.Next(); element == nil {
+			continue
 		}
 	}
 
-	if err = bufout.Flush(); err != nil {
+	if err = out.Flush(); err != nil {
 		log.Println("history.Save:", err)
 	}
 
@@ -135,7 +132,7 @@ func (h *history) closeFile() {
 	h.file.Close()
 }
 
-// Opens the file.
+// Re-opens the file.
 /*func (h *history) openFile() {
 	file, err := os.Open(fname, os.O_CREATE|os.O_RDWR, FilePerm)
 	if err != nil {
@@ -145,4 +142,49 @@ func (h *history) closeFile() {
 
 	h.file = file
 }*/
+// ===
+
+
+// Adds a new line to the buffer.
+func (h *history) Add(line string) {
+	if h.li.Len() <= h.Cap {
+		h.mark = h.li.PushBack(line)
+	} else {
+		//!!! overwrite lines
+	}
+}
+
+// Base to move between lines.
+func (h *history) _baseNextPrev(c byte) (line []int, err os.Error) {
+	if h.li.Len() <= 0 {
+		return line, ErrEmptyHist
+	}
+
+	new := new(list.Element)
+	if c == 'p' {
+		new = h.mark.Prev()
+	} else if c == 'n' {
+		new = h.mark.Next()
+	} else {
+		panic("history._baseNextPrev: wrong character choice")
+	}
+
+	if new != nil {
+		h.mark = new
+	} else {
+		return nil, ErrNilElement
+	}
+
+	return []int(new.Value.(string)), nil
+}
+
+// Returns the previous line.
+func (h *history) Prev() (line []int, err os.Error) {
+	return h._baseNextPrev('p')
+}
+
+// Returns the next line.
+func (h *history) Next() (line []int, err os.Error) {
+	return h._baseNextPrev('n')
+}
 
