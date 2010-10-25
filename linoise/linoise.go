@@ -138,10 +138,6 @@ func (ln *line) Run() (err os.Error) {
 				}
 			}
 
-		case 9: // horizontal tab
-			//!!! disabled by now
-			continue
-
 		case 13: // enter
 			ln.hist.Add(ln.String())
 			goto _deleteLine
@@ -151,22 +147,12 @@ func (ln *line) Run() (err os.Error) {
 				goto _refresh
 			}
 
-		case 20: // Ctrl-t //!!! add
+		case 9: // horizontal tab
+			//!!! disabled by now
 			continue
 
-		case 2: // Ctrl-b
-			goto _leftArrow
-
-		case 6: // Ctrl-f
-			goto _rightArrow
-
-		case 16: // Ctrl-p
-			seq[1] = 65
-			goto _upDownArrow
-
-		case 14: // Ctrl-n
-			seq[1] = 66
-			goto _upDownArrow
+		case 20: // Ctrl-t //!!! add
+			continue
 
 		case 3: // Ctrl-c
 			ln.Insert('^')
@@ -188,7 +174,7 @@ func (ln *line) Run() (err os.Error) {
 			if _, err = in.Read(seq); err != nil {
 				return
 			}
-			//fmt.Print(" >", seq) //!!! DEBUG
+			//fmt.Print(" >", seq) //!!! For DEBUG
 
 			if seq[0] == _L_BRACKET {
 				switch seq[1] {
@@ -205,7 +191,7 @@ func (ln *line) Run() (err os.Error) {
 					if _, err = in.Read(seq2); err != nil {
 						return
 					}
-					//fmt.Print(" >>", seq2) //!!! DEBUG
+					//fmt.Print(" >>", seq2) //!!! For DEBUG
 
 					//!!! doesn't works
 					if seq[1] == 51 && seq2[0] == 126 { // Delete
@@ -236,18 +222,20 @@ func (ln *line) Run() (err os.Error) {
 
 		case 5: // Ctrl+e, go to the end of the line.
 			goto _end
-		}
-		continue
 
-	_leftArrow:
-		if ln.Left() {
-			goto _refresh
-		}
-		continue
+		case 2: // Ctrl-b
+			goto _leftArrow
 
-	_rightArrow:
-		if ln.Right() {
-			goto _refresh
+		case 6: // Ctrl-f
+			goto _rightArrow
+
+		case 16: // Ctrl-p
+			seq[1] = 65
+			goto _upDownArrow
+
+		case 14: // Ctrl-n
+			seq[1] = 66
+			goto _upDownArrow
 		}
 		continue
 
@@ -276,6 +264,18 @@ func (ln *line) Run() (err os.Error) {
 		ln.cursor = len(anotherLine)
 		copy(ln.data[0:], anotherLine)
 		goto _refresh
+
+	_leftArrow:
+		if ln.Left() {
+			goto _refresh
+		}
+		continue
+
+	_rightArrow:
+		if ln.Right() {
+			goto _refresh
+		}
+		continue
 
 	_start:
 		ln.cursor = 0
