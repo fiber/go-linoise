@@ -1,12 +1,13 @@
 go-linoise
 ==========
 
-<< Describe project >>
+**go-linoise** is a simple library for line editing, licensed under BSD, and as
+replacement to GNU Readline. It is based in [linenoise][4].
 
 
 ## Installation
 
-In the first, there is to install [go-term][4]. And then:
+In the first, there is to install [go-term][5]. And then:
 
 	$ goinstall github.com/kless/go-linoise/linoise
 
@@ -50,7 +51,7 @@ There are several values by default:
 
 		ln := linoise.NewLine(hist, "linoise> ")
 		if err = ln.Run(); err != nil && err != linoise.ErrCtrlD {
-			fmt.Println(err)
+			fmt.Fprintf(os.Stderr, err.String())
 		} else {
 			hist.Save()
 		}
@@ -82,6 +83,9 @@ To reporting bugs, please login and create a new issue [here][2].
 
 For credits, see file AUTHORS and CONTRIBUTORS (if any).
 
+I would like to thank Salvatore Sanfilippo for building *linenoise*, and to do it
+under a liberal license.
+
 
 ## ChangeLog
 
@@ -96,5 +100,6 @@ see the [commit history][3].
 [1]: http://github.com/kless
 [2]: http://github.com/kless/go-linoise/issues
 [3]: http://github.com/kless/go-linoise/commits/master
-[4]: http://github.com/kless/go-term
+[4]: http://github.com/antirez/linenoise
+[5]: http://github.com/kless/go-term
 
