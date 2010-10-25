@@ -107,14 +107,17 @@ func (ln *line) Refresh() (err os.Error) {
 // ===
 
 func (ln *line) Run() (err os.Error) {
-	// Print the primary prompt.
-	if _, err = fmt.Fprint(Output, ln.prompt); err != nil {
-		return
-	}
+	var anotherLine []int // For lines got from history.
+	var isHistoryUsed bool // If the history has been accessed.
 
 	in := bufio.NewReader(Input) // Read input.
 	seq := make([]byte, 2)       // For escape sequences.
 	seq2 := make([]byte, 2)      // Extended escape sequences.
+
+	// Print the primary prompt.
+	if _, err = fmt.Fprint(Output, ln.prompt); err != nil {
+		return
+	}
 
 	for {
 		rune, _, err := in.ReadRune()
@@ -144,7 +147,7 @@ func (ln *line) Run() (err os.Error) {
 			goto _deleteLine
 
 		case 127, 8: // backspace, Ctrl-h
-			if ln.DeleteLast() {
+			if ln.DeletePrev() {
 				goto _refresh
 			}
 
@@ -165,25 +168,27 @@ func (ln *line) Run() (err os.Error) {
 			seq[1] = 66
 			goto _upDownArrow
 
-		case 3, 4: // Ctrl-c, Ctrl-d
-			if rune == 3 {
-				ln.Insert('^')
-				ln.Insert('C')
-				err = ErrCtrlC
-			} else {
-				ln.Insert('^')
-				ln.Insert('D')
-				err = ErrCtrlD
-			}
+		case 3: // Ctrl-c
+			ln.Insert('^')
+			ln.Insert('C')
 
+			if _, err = fmt.Fprint(Output, "\n"); err != nil {
+				return
+			}
+			goto _deleteLine
+
+		case 4: // Ctrl-d
+			ln.Insert('^')
+			ln.Insert('D')
 			ln.Refresh()
-			return
+			return ErrCtrlD
 
 		// Escape sequence
 		case _ESC:
 			if _, err = in.Read(seq); err != nil {
 				return
 			}
+			//fmt.Print(" >", seq) //!!! DEBUG
 
 			if seq[0] == _L_BRACKET {
 				switch seq[1] {
@@ -191,7 +196,7 @@ func (ln *line) Run() (err os.Error) {
 					goto _leftArrow
 				case 67:
 					goto _rightArrow
-				case 65, 66:
+				case 65, 66: // Up, Down
 					goto _upDownArrow
 				}
 
@@ -200,12 +205,22 @@ func (ln *line) Run() (err os.Error) {
 					if _, err = in.Read(seq2); err != nil {
 						return
 					}
+					//fmt.Print(" >>", seq2) //!!! DEBUG
+
 					//!!! doesn't works
 					if seq[1] == 51 && seq2[0] == 126 { // Delete
 						if ln.Delete() {
 							goto _refresh
 						}
 					}
+				}
+			}
+			if seq[0] == 79 {
+				switch seq[1] {
+				case 72: // Home
+					goto _start
+				case 70: // End
+					goto _end
 				}
 			}
 
@@ -217,12 +232,10 @@ func (ln *line) Run() (err os.Error) {
 			goto _refresh
 
 		case 1: // Ctrl+a, go to the start of the line.
-			ln.cursor = 0
-			goto _refresh
+			goto _start
 
 		case 5: // Ctrl+e, go to the end of the line.
-			ln.cursor = ln.size
-			goto _refresh
+			goto _end
 		}
 		continue
 
@@ -238,13 +251,39 @@ func (ln *line) Run() (err os.Error) {
 		}
 		continue
 
-	_upDownArrow:
-		if ln.hist.Len > 1 {
-			// Update the current history entry before to overwrite it with tne
-			// next one.
-
+	_upDownArrow: // Up and down arrow: history
+		// Up
+		if seq[1] == 65 {
+			anotherLine, err = ln.hist.Prev()
+		// Down
+		} else {
+			anotherLine, err = ln.hist.Next()
 		}
-		continue
+		if err != nil {
+			continue
+		}
+
+		// Update the current history entry before to overwrite it with
+		// the next one.
+		//!!! it has to be removed before of to be saved the history
+		if !isHistoryUsed {
+			ln.hist.Add(ln.String())
+		}
+		isHistoryUsed = true
+
+		ln.grow(len(anotherLine))
+		ln.size = len(anotherLine)
+		ln.cursor = len(anotherLine)
+		copy(ln.data[0:], anotherLine)
+		goto _refresh
+
+	_start:
+		ln.cursor = 0
+		goto _refresh
+
+	_end:
+		ln.cursor = ln.size
+		goto _refresh
 
 	_deleteLine:
 		ln.cursor, ln.size = 0, 0
