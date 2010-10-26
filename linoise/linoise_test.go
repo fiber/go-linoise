@@ -23,7 +23,7 @@ var linoiseFile = path.Join(os.TempDir(), "go_linoise")
 
 
 func TestLinoise(t *testing.T) {
-	term.MakeRaw(Input.Fd())
+	term.MakeRaw()
 	defer term.RestoreTermios()
 
 	hist, err := NewHistory(linoiseFile)

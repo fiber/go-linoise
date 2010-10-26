@@ -1,8 +1,14 @@
 go-linoise
 ==========
 
-**go-linoise** is a simple library for line editing, licensed under BSD, and as
-replacement to GNU Readline. It is based in [linenoise][4].
+**go-linoise** is a simple library for line editing, as replacement to GNU
+Readline. It is based in [linenoise][4].
+
+Features:
+
++ Licensed under BSD, a liberal license
++ Unicode support
++ History
 
 
 ## Installation
@@ -40,7 +46,7 @@ There are several values by default:
 	func main() {
 		fmt.Println("Press ^D to exit\n")
 
-		term.MakeRaw(os.Stdin.Fd())
+		term.MakeRaw()
 		defer term.RestoreTermios()
 
 		hist, err := linoise.NewHistory(historyFile)
