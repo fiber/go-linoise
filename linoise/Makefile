@@ -15,6 +15,8 @@ GOFILES=\
 	error.go\
 	history.go\
 	linoise.go\
+	util.go\
+#	quest.go\
 
 include $(GOROOT)/src/Make.pkg
 

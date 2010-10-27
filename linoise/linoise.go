@@ -12,6 +12,7 @@ package linoise
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"os"
 	"utf8"
 )
@@ -19,8 +20,10 @@ import (
 
 // Values by default
 var (
-	Input  = os.Stdin
-	Output = os.Stdout
+	Input  *os.File = os.Stdin
+	Output *os.File = os.Stdout
+	PS1    = "linoise$ "
+	PS2    = "> "
 )
 
 // ASCII codes
@@ -42,16 +45,30 @@ var (
 
 // Represents a line.
 type line struct {
-	promptLen int      // Prompt size
-	prompt    string   // Primary prompt
-	*buffer            // Text buffer
-	hist      *history // History file
+	ps1Len  int      // Primary prompt size
+	ps1     string   // Primary prompt
+	ps2     string   // Command continuations
+	*buffer          // Text buffer
+	hist    *history // History file
 }
 
-func NewLine(hist *history, prompt string) *line {
+// Gets a line type using the given prompt as primary.
+func NewLinePrompt(hist *history, prompt string) *line {
 	return &line{
 		len(prompt),
 		prompt,
+		PS2,
+		newBuffer(),
+		hist,
+	}
+}
+
+// Gets a line type using the primary prompt by default.
+func NewLine(hist *history) *line {
+	return &line{
+		len(PS1),
+		PS1,
+		PS2,
 		newBuffer(),
 		hist,
 	}
@@ -83,31 +100,44 @@ func (ln *line) Bytes() []byte {
 func (ln *line) String() string { return string(ln.data[:ln.size]) }
 
 // Refreshes the line.
-func (ln *line) Refresh() (err os.Error) {
-	if _, err = Output.Write(cursorToleft); err != nil {
-		return
+func (ln *line) Refresh() {
+	_, err := Output.Write(cursorToleft)
+	if err != nil {
+		goto _error
 	}
-	if _, err = fmt.Fprint(Output, ln.prompt); err != nil {
-		return
+	if _, err = fmt.Fprint(Output, ln.ps1); err != nil {
+		goto _error
 	}
 	if _, err = Output.Write(ln.Bytes()); err != nil {
-		return
+		goto _error
 	}
 	if _, err = Output.Write(toleftDelRight); err != nil {
-		return
+		goto _error
 	}
 	// Move cursor to original position.
-	_, err = fmt.Fprintf(Output, "\033[%dC", ln.promptLen+ln.cursor)
+	if _, err = fmt.Fprintf(Output, "\033[%dC", ln.ps1Len+ln.cursor); err != nil {
+		goto _error
+	}
 
 	return
+
+	_error:
+		reportPanic("line.Refresh", err)
+}
+
+// Reports an panic message, printing the function name `f`.
+func reportPanic(f string, err os.Error) {
+	fmt.Println()
+	Output.Write(cursorToleft)
+	log.Printf("linoise: %s: %s", f, err.String())
 }
 
 
 // === Get
 // ===
 
-func (ln *line) Run() (err os.Error) {
-	var anotherLine []int // For lines got from history.
+func (ln *line) Run() {
+	var anotherLine []int  // For lines got from history.
 	var isHistoryUsed bool // If the history has been accessed.
 
 	in := bufio.NewReader(Input) // Read input.
@@ -115,27 +145,26 @@ func (ln *line) Run() (err os.Error) {
 	seq2 := make([]byte, 2)      // Extended escape sequences.
 
 	// Print the primary prompt.
-	if _, err = fmt.Fprint(Output, ln.prompt); err != nil {
-		return
+	_, err := fmt.Fprint(Output, ln.ps1)
+	if err != nil {
+		reportPanic("line.Run", err)
 	}
 
 	for {
 		rune, _, err := in.ReadRune()
 		if err != nil {
-			return
+			reportPanic("line.Run", err)
 		}
 
 		switch rune {
 		default:
 			useRefresh, err := ln.Insert(rune)
 			if err != nil {
-				return
+				reportPanic("line.Run", err)
 			}
 
 			if useRefresh {
-				if err = ln.Refresh(); err != nil {
-					return
-				}
+				ln.Refresh()
 			}
 			continue
 
@@ -158,7 +187,7 @@ func (ln *line) Run() (err os.Error) {
 			ln.Insert('C')
 
 			if _, err = fmt.Fprint(Output, "\n"); err != nil {
-				return
+				reportPanic("line.Run", err)
 			}
 			goto _deleteLine
 
@@ -166,12 +195,12 @@ func (ln *line) Run() (err os.Error) {
 			ln.Insert('^')
 			ln.Insert('D')
 			ln.Refresh()
-			return ErrCtrlD
+			return
 
 		// Escape sequence
 		case _ESC:
 			if _, err = in.Read(seq); err != nil {
-				return
+				reportPanic("line.Run", err)
 			}
 			//fmt.Print(" >", seq) //!!! For DEBUG
 
@@ -188,7 +217,7 @@ func (ln *line) Run() (err os.Error) {
 				// Extended escape.
 				if seq[1] > 48 && seq[1] < 55 {
 					if _, err = in.Read(seq2); err != nil {
-						return
+						reportPanic("line.Run", err)
 					}
 					//fmt.Print(" >>", seq2) //!!! For DEBUG
 
@@ -243,13 +272,13 @@ func (ln *line) Run() (err os.Error) {
 			seq[1] = 66
 			goto _upDownArrow
 		}
-		continue // To be safe.
+			continue // To be safe.
 
 	_upDownArrow: // Up and down arrow: history
 		// Up
 		if seq[1] == 65 {
 			anotherLine, err = ln.hist.Prev()
-		// Down
+			// Down
 		} else {
 			anotherLine, err = ln.hist.Next()
 		}
@@ -296,11 +325,7 @@ func (ln *line) Run() (err os.Error) {
 		//goto _refresh
 
 	_refresh:
-		if err = ln.Refresh(); err != nil {
-			return
-		}
+		ln.Refresh()
 	}
-
-	return
 }
 

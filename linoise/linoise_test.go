@@ -10,7 +10,7 @@
 package linoise
 
 import (
-	"fmt"
+	_"fmt"
 	"os"
 	"path"
 	"testing"
@@ -32,12 +32,9 @@ func TestLinoise(t *testing.T) {
 	}
 	hist.Load()
 
-	ln := NewLine(hist, "linoise> ")
-	if err = ln.Run(); err != nil && err != ErrCtrlD {
-		fmt.Println(err)
-	} else {
-		hist.Save()
-	}
+	ln := NewLine(hist)
+	ln.Run()
+	hist.Save()
 
 	//os.Remove(linoiseFile)
 }
