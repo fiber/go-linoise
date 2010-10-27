@@ -55,12 +55,9 @@ There are several values by default:
 		}
 		hist.Load()
 
-		ln := linoise.NewLine(hist, "linoise> ")
-		if err = ln.Run(); err != nil && err != linoise.ErrCtrlD {
-			fmt.Fprintf(os.Stderr, err.String())
-		} else {
-			hist.Save()
-		}
+		ln := NewLine(hist)
+		ln.Run()
+		hist.Save()
 
 		//os.Remove(historyFile)
 	}

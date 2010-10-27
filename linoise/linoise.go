@@ -12,7 +12,6 @@ package linoise
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"os"
 	"utf8"
 )
@@ -129,7 +128,7 @@ func (ln *line) Refresh() {
 func reportPanic(f string, err os.Error) {
 	fmt.Println()
 	Output.Write(cursorToleft)
-	log.Printf("linoise: %s: %s", f, err.String())
+	panic(fmt.Sprintf("linoise: %s: %s", f, err.String()))
 }
 
 
