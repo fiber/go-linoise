@@ -56,8 +56,18 @@ There are several values by default:
 		hist.Load()
 
 		ln := NewLine(hist)
-		ln.Read()
-		hist.Save()
+		for {
+			_, err = ln.Read()
+			if err != nil {
+				break
+			}
+		}
+
+		if err == ErrCtrlD {
+			hist.Save()
+		} else {
+			fmt.Println(err)
+		}
 
 		//os.Remove(historyFile)
 	}
