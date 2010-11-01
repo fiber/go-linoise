@@ -15,6 +15,7 @@ GOFILES=\
 	error.go\
 	history.go\
 	linoise.go\
+	question.go\
 	util.go\
 #	quest.go\
 

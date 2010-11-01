@@ -13,6 +13,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"strings"
 	"utf8"
 )
 
@@ -43,33 +44,36 @@ var (
 // ===
 
 // Represents a line.
-type line struct {
+type Line struct {
 	ps1Len  int      // Primary prompt size
 	ps1     string   // Primary prompt
 	ps2     string   // Command continuations
 	*buffer          // Text buffer
 	hist    *history // History file
+	q       *question
 }
 
 // Gets a line type using the given prompt as primary.
-func NewLinePrompt(hist *history, prompt string) *line {
-	return &line{
+func NewLinePrompt(hist *history, prompt string) *Line {
+	return &Line{
 		len(prompt),
 		prompt,
 		PS2,
 		newBuffer(),
 		hist,
+		nil,
 	}
 }
 
 // Gets a line type using the primary prompt by default.
-func NewLine(hist *history) *line {
-	return &line{
+func NewLine(hist *history) *Line {
+	return &Line{
 		len(PS1),
 		PS1,
 		PS2,
 		newBuffer(),
 		hist,
+		nil,
 	}
 }
 
@@ -78,7 +82,7 @@ func NewLine(hist *history) *line {
 // ===
 
 // Returns a slice of the contents of the buffer.
-func (ln *line) Bytes() []byte {
+func (ln *Line) Bytes() []byte {
 	chars := make([]byte, ln.size*utf8.UTFMax)
 	var end, runeLen int
 
@@ -96,46 +100,56 @@ func (ln *line) Bytes() []byte {
 }
 
 // Returns the contents of the buffer as a string.
-func (ln *line) String() string { return string(ln.data[:ln.size]) }
+func (ln *Line) String() string { return string(ln.data[:ln.size]) }
 
-// Refreshes the line.
-func (ln *line) Refresh() {
-	_, err := Output.Write(cursorToleft)
-	if err != nil {
-		goto _error
+// Prints the primary prompt.
+func (ln *Line) Prompt() (err os.Error) {
+	ln.cursor, ln.size = 0, 0
+
+	if _, err = Output.Write(cursorToleft); err != nil {
+		return err
 	}
 	if _, err = fmt.Fprint(Output, ln.ps1); err != nil {
-		goto _error
-	}
-	if _, err = Output.Write(ln.Bytes()); err != nil {
-		goto _error
+		return err
 	}
 	if _, err = Output.Write(toleftDelRight); err != nil {
-		goto _error
+		return err
+	}
+	// Move cursor after prompt.
+	if _, err = fmt.Fprintf(Output, "\033[%dC", ln.ps1Len); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Refreshes the line.
+func (ln *Line) Refresh() (err os.Error) {
+	if _, err = Output.Write(cursorToleft); err != nil {
+		return err
+	}
+	if _, err = fmt.Fprint(Output, ln.ps1); err != nil {
+		return err
+	}
+	if _, err = Output.Write(ln.Bytes()); err != nil {
+		return err
+	}
+	if _, err = Output.Write(toleftDelRight); err != nil {
+		return err
 	}
 	// Move cursor to original position.
 	if _, err = fmt.Fprintf(Output, "\033[%dC", ln.ps1Len+ln.cursor); err != nil {
-		goto _error
+		return err
 	}
 
-	return
-
-	_error:
-		reportPanic("line.Refresh", err)
-}
-
-// Reports an panic message, printing the function name `f`.
-func reportPanic(f string, err os.Error) {
-	fmt.Println()
-	Output.Write(cursorToleft)
-	panic(fmt.Sprintf("linoise: %s: %s", f, err.String()))
+	return nil
 }
 
 
 // === Get
 // ===
 
-func (ln *line) Run() {
+func (ln *Line) Read() (line string, err os.Error) {
 	var anotherLine []int  // For lines got from history.
 	var isHistoryUsed bool // If the history has been accessed.
 
@@ -143,23 +157,22 @@ func (ln *line) Run() {
 	seq := make([]byte, 2)       // For escape sequences.
 	seq2 := make([]byte, 2)      // Extended escape sequences.
 
-	// Print the primary prompt.
-	_, err := fmt.Fprint(Output, ln.ps1)
-	if err != nil {
-		reportPanic("line.Run", err)
+	// Primary prompt.
+	if err = ln.Prompt(); err != nil {
+		return "", err
 	}
 
 	for {
 		rune, _, err := in.ReadRune()
 		if err != nil {
-			reportPanic("line.Run", err)
+			return "", err
 		}
 
 		switch rune {
 		default:
 			useRefresh, err := ln.Insert(rune)
 			if err != nil {
-				reportPanic("line.Run", err)
+				return "", err
 			}
 
 			if useRefresh {
@@ -168,8 +181,14 @@ func (ln *line) Run() {
 			continue
 
 		case 13: // enter
-			ln.hist.Add(ln.String())
-			goto _deleteLine
+			line = ln.String()
+			ln.hist.Add(line)
+
+			if err = ln.Prompt(); err != nil {
+				return "", err
+			}
+
+			return strings.TrimSpace(line), nil
 
 		case 127, 8: // backspace, Ctrl-h
 			if ln.DeletePrev() {
@@ -178,7 +197,7 @@ func (ln *line) Run() {
 			continue
 
 		case 9: // horizontal tab
-			//!!! disabled by now
+			// TODO: disabled by now
 			continue
 
 		case 3: // Ctrl-c
@@ -186,7 +205,7 @@ func (ln *line) Run() {
 			ln.Insert('C')
 
 			if _, err = fmt.Fprint(Output, "\n"); err != nil {
-				reportPanic("line.Run", err)
+				return "", err
 			}
 			goto _deleteLine
 
@@ -194,12 +213,12 @@ func (ln *line) Run() {
 			ln.Insert('^')
 			ln.Insert('D')
 			ln.Refresh()
-			return
+			return "", ErrCtrlD
 
 		// Escape sequence
 		case _ESC:
 			if _, err = in.Read(seq); err != nil {
-				reportPanic("line.Run", err)
+				return "", err
 			}
 			//fmt.Print(" >", seq) //!!! For DEBUG
 
@@ -216,11 +235,11 @@ func (ln *line) Run() {
 				// Extended escape.
 				if seq[1] > 48 && seq[1] < 55 {
 					if _, err = in.Read(seq2); err != nil {
-						reportPanic("line.Run", err)
+						return "", err
 					}
 					//fmt.Print(" >>", seq2) //!!! For DEBUG
 
-					//!!! doesn't works
+					// TODO: doesn't works
 					if seq[1] == 51 && seq2[0] == 126 { // Delete
 						if ln.Delete() {
 							goto _refresh
@@ -287,7 +306,7 @@ func (ln *line) Run() {
 
 		// Update the current history entry before to overwrite it with
 		// the next one.
-		//!!! it has to be removed before of to be saved the history
+		// TODO: it has to be removed before of to be saved the history
 		if !isHistoryUsed {
 			ln.hist.Add(ln.String())
 		}
@@ -325,6 +344,12 @@ func (ln *line) Run() {
 
 	_refresh:
 		ln.Refresh()
+
+	continue
+
+	_error:
+		return "", err
 	}
+	return "", nil
 }
 

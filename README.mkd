@@ -56,7 +56,7 @@ There are several values by default:
 		hist.Load()
 
 		ln := NewLine(hist)
-		ln.Run()
+		ln.Read()
 		hist.Save()
 
 		//os.Remove(historyFile)

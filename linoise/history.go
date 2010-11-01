@@ -150,7 +150,7 @@ func (h *history) Add(line string) {
 	if h.li.Len() <= h.Cap {
 		h.mark = h.li.PushBack(line)
 	} else {
-		//!!! overwrite lines
+		// TODO: overwrite lines
 	}
 }
 

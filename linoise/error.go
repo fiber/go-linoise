@@ -29,6 +29,7 @@ type error struct {
 }
 
 var (
+	ErrCtrlD      = &error{"Interrumpted: End of Transmission (Ctrl-d)"}
 	ErrEmptyHist  = &error{"history: empty"}
 	ErrNilElement = &error{"history: no more elements"}
 )
