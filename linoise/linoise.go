@@ -170,7 +170,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 	for {
 		rune, _, err := in.ReadRune()
 		if err != nil {
-			return "", err
+			panic("ReadRune: " + err.String())
 		}
 
 		switch rune {
@@ -222,7 +222,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 		// Escape sequence
 		case _ESC:
 			if _, err = in.Read(seq); err != nil {
-				return "", err
+				panic("Read: " + err.String())
 			}
 			//fmt.Print(" >", seq) //!!! For DEBUG
 
@@ -239,7 +239,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 				// Extended escape.
 				if seq[1] > 48 && seq[1] < 55 {
 					if _, err = in.Read(seq2); err != nil {
-						return "", err
+						panic("Read: " + err.String())
 					}
 					//fmt.Print(" >>", seq2) //!!! For DEBUG
 
