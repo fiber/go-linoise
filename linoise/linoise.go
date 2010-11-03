@@ -42,7 +42,7 @@ var (
 )
 
 var (
-	newLine = []byte{'\n'}
+	_NL = []byte{'\n'}
 	ctrlC   = []int("^C")
 	ctrlD   = []int("^D")
 )
@@ -130,6 +130,18 @@ func (ln *Line) toBytes() []byte {
 // Returns the contents of the buffer as a string.
 func (ln *Line) toString() string { return string(ln.data[:ln.size]) }
 
+// Prints a new line.
+func (ln *Line) newLine() (err os.Error) {
+	if _, err = Output.Write(_NL); err != nil {
+		return
+	}
+	if _, err = Output.Write(cursorToleft); err != nil {
+		return
+	}
+
+	return nil
+}
+
 // Prints the primary prompt.
 func (ln *Line) prompt() (err os.Error) {
 	ln.cursor, ln.size = 0, 0
@@ -215,9 +227,10 @@ func (ln *Line) Read() (line string, err os.Error) {
 				ln.hist.Add(line)
 			}
 
-			if _, err = Output.Write(newLine); err != nil {
+			if err = ln.newLine(); err != nil {
 				return "", err
 			}
+
 			return strings.TrimSpace(line), nil
 
 		case 127, 8: // backspace, Ctrl-h
@@ -240,11 +253,14 @@ func (ln *Line) Read() (line string, err os.Error) {
 				ln.refresh()
 			}
 
-			if _, err = Output.Write(newLine); err != nil {
+			if _, err = Output.Write(_NL); err != nil {
+				return "", err
+			}
+			if err = ln.prompt(); err != nil {
 				return "", err
 			}
 
-			goto _deleteLine
+			continue
 
 		case 4: // Ctrl-d
 			useRefresh, err := ln.InsertRunes(ctrlD)
@@ -256,10 +272,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 				ln.refresh()
 			}
 
-			if _, err = Output.Write(newLine); err != nil {
-				return "", err
-			}
-			if _, err = Output.Write(cursorToleft); err != nil {
+			if err = ln.newLine(); err != nil {
 				return "", err
 			}
 
