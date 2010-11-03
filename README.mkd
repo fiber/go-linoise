@@ -24,7 +24,7 @@ There are several values by default:
 
 + In the buffer: *BufferCap*, *BufferLen*.
 + In the history file: *HistoryCap*, *HistoryPerm*.
-+ In the main code: *Input*, *Output*.
++ In the main code: *PS1*, *PS2*.
 
 
 ## Operating instructions
@@ -63,8 +63,6 @@ There are several values by default:
 
 		if err == linoise.ErrCtrlD {
 			hist.Save()
-		} else {
-			fmt.Println(err)
 		}
 
 		//os.Remove(historyFile)

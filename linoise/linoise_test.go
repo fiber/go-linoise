@@ -41,8 +41,6 @@ func TestLinoise(t *testing.T) {
 
 	if err == ErrCtrlD {
 		hist.Save()
-	} else {
-		fmt.Println(err)
 	}
 
 	//os.Remove(linoiseFile)
