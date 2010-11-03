@@ -14,8 +14,6 @@ import (
 	"os"
 	"path"
 	"testing"
-
-	"github.com/kless/go-term/term"
 )
 
 
@@ -23,8 +21,7 @@ var linoiseFile = path.Join(os.TempDir(), "go_linoise")
 
 
 func TestLinoise(t *testing.T) {
-	term.MakeRaw()
-	defer term.RestoreTermios()
+	fmt.Println("Press ^D to exit\n")
 
 	hist, err := NewHistory(linoiseFile)
 	if err != nil {
@@ -33,6 +30,7 @@ func TestLinoise(t *testing.T) {
 	hist.Load()
 
 	ln := NewLine(hist)
+	defer ln.RestoreTerm()
 
 	for {
 		_, err = ln.Read()

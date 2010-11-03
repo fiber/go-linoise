@@ -37,7 +37,6 @@ There are several values by default:
 		"path"
 
 		"github.com/kless/go-linoise/linoise"
-		"github.com/kless/go-term/term"
 	)
 
 	var historyFile = path.Join(os.TempDir(), "go_linoise")
@@ -46,16 +45,15 @@ There are several values by default:
 	func main() {
 		fmt.Println("Press ^D to exit\n")
 
-		term.MakeRaw()
-		defer term.RestoreTermios()
-
-		hist, err := linoise.NewHistory(historyFile)
+		hist, err := NewHistory(linoiseFile)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, err.String())
+			t.Error(err)
 		}
 		hist.Load()
 
 		ln := NewLine(hist)
+		defer ln.RestoreTerm()
+
 		for {
 			_, err = ln.Read()
 			if err != nil {
@@ -69,7 +67,7 @@ There are several values by default:
 			fmt.Println(err)
 		}
 
-		//os.Remove(historyFile)
+		//os.Remove(linoiseFile)
 	}
 
 

@@ -25,7 +25,7 @@ func TestUtility(t *testing.T) {
 	rune, _ := ReadKey("\n + Mode on single character: ")
 
 	fmt.Printf("\n  pressed: %q", string(rune))
-	term.RestoreTermios()
+	term.RestoreTerm()
 
 	// === Echo
 	term.Echo(false)

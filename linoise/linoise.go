@@ -15,6 +15,8 @@ import (
 	"os"
 	"strings"
 	"utf8"
+
+	"github.com/kless/go-term/term"
 )
 
 
@@ -39,42 +41,68 @@ var (
 	toleftDelRight = []byte("\033[0K\033[0G") // Cursor to left; erase to right.
 )
 
+var (
+	newLine = []byte{'\n'}
+	ctrlC   = []int("^C")
+	ctrlD   = []int("^D")
+)
+
 
 // === Type
 // ===
 
 // Represents a line.
 type Line struct {
-	ps1Len  int      // Primary prompt size
-	ps1     string   // Primary prompt
-	ps2     string   // Command continuations
-	*buffer          // Text buffer
-	hist    *history // History file
-	q       *question
+	//	isQuestion bool
+	useHistory bool
+	ps1Len     int      // Primary prompt size
+	ps1        string   // Primary prompt
+	ps2        string   // Command continuations
+	*buffer             // Text buffer
+	hist       *history // History file
 }
 
 // Gets a line type using the given prompt as primary.
-func NewLinePrompt(hist *history, prompt string) *Line {
+func NewLinePrompt(prompt string, hist *history) *Line {
+	term.MakeRaw()
+
 	return &Line{
+		//		false,
+		hasHistory(hist),
 		len(prompt),
 		prompt,
 		PS2,
 		newBuffer(),
 		hist,
-		nil,
 	}
 }
 
 // Gets a line type using the primary prompt by default.
 func NewLine(hist *history) *Line {
+	term.MakeRaw()
+
 	return &Line{
+		//		false,
+		hasHistory(hist),
 		len(PS1),
 		PS1,
 		PS2,
 		newBuffer(),
 		hist,
-		nil,
 	}
+}
+
+// Restores terminal settings.
+func (ln *Line) RestoreTerm() {
+	term.RestoreTerm()
+}
+
+// Tests if it has an history file.
+func hasHistory(h *history) bool {
+	if h == nil {
+		return false
+	}
+	return true
 }
 
 
@@ -182,12 +210,12 @@ func (ln *Line) Read() (line string, err os.Error) {
 
 		case 13: // enter
 			line = ln.String()
-			ln.hist.Add(line)
 
-			if err = ln.Prompt(); err != nil {
-				return "", err
+			if ln.useHistory {
+				ln.hist.Add(line)
 			}
 
+			Output.Write(newLine)
 			return strings.TrimSpace(line), nil
 
 		case 127, 8: // backspace, Ctrl-h
@@ -201,18 +229,29 @@ func (ln *Line) Read() (line string, err os.Error) {
 			continue
 
 		case 3: // Ctrl-c
-			ln.Insert('^')
-			ln.Insert('C')
+			useRefresh, err := ln.InsertRunes(ctrlC)
 
-			if _, err = fmt.Fprint(Output, "\n"); err != nil {
+			if err != nil {
 				return "", err
 			}
+			if useRefresh {
+				ln.Refresh()
+			}
+
+			Output.Write(newLine)
 			goto _deleteLine
 
 		case 4: // Ctrl-d
-			ln.Insert('^')
-			ln.Insert('D')
-			ln.Refresh()
+			useRefresh, err := ln.InsertRunes(ctrlD)
+
+			if err != nil {
+				return "", err
+			}
+			if useRefresh {
+				ln.Refresh()
+			}
+
+			Output.Write(newLine)
 			return "", ErrCtrlD
 
 		// Escape sequence
@@ -293,6 +332,10 @@ func (ln *Line) Read() (line string, err os.Error) {
 			continue // To be safe.
 
 	_upDownArrow: // Up and down arrow: history
+		if !ln.useHistory {
+			continue
+		}
+
 		// Up
 		if seq[1] == 65 {
 			anotherLine, err = ln.hist.Prev()
@@ -345,7 +388,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 	_refresh:
 		ln.Refresh()
 
-	continue
+		continue
 
 	_error:
 		return "", err

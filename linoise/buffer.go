@@ -68,6 +68,17 @@ func (b *buffer) Insert(rune int) (useRefresh bool, err os.Error) {
 	return
 }
 
+// Inserts several characters.
+func (b *buffer) InsertRunes(runes []int) (useRefresh bool, err os.Error) {
+	for _, r := range runes {
+		useRefresh, err = b.Insert(r)
+		if err != nil {
+			return
+		}
+	}
+	return
+}
+
 // Moves the cursor one character backward.
 func (b *buffer) Left() bool {
 	if b.cursor > 0 {
