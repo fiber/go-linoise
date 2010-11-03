@@ -20,12 +20,16 @@ import (
 )
 
 
-// Values by default
+// Values by default for prompts.
 var (
-	Input  *os.File = os.Stdin
-	Output *os.File = os.Stdout
-	PS1    = "linoise$ "
-	PS2    = "> "
+	PS1 = "linoise$ "
+	PS2 = "> "
+)
+
+// Input / Output
+var (
+	input  *os.File = os.Stdin
+	output *os.File = os.Stdout
 )
 
 // ASCII codes
@@ -42,9 +46,9 @@ var (
 )
 
 var (
-	_NL = []byte{'\n'}
-	ctrlC   = []int("^C")
-	ctrlD   = []int("^D")
+	_NL   = []byte{'\n'}
+	ctrlC = []int("^C")
+	ctrlD = []int("^D")
 )
 
 
@@ -53,7 +57,6 @@ var (
 
 // Represents a line.
 type Line struct {
-	//	isQuestion bool
 	useHistory bool
 	ps1Len     int      // Primary prompt size
 	ps1        string   // Primary prompt
@@ -67,7 +70,6 @@ func NewLinePrompt(prompt string, hist *history) *Line {
 	term.MakeRaw()
 
 	return &Line{
-		//		false,
 		hasHistory(hist),
 		len(prompt),
 		prompt,
@@ -82,7 +84,6 @@ func NewLine(hist *history) *Line {
 	term.MakeRaw()
 
 	return &Line{
-		//		false,
 		hasHistory(hist),
 		len(PS1),
 		PS1,
@@ -130,59 +131,25 @@ func (ln *Line) toBytes() []byte {
 // Returns the contents of the buffer as a string.
 func (ln *Line) toString() string { return string(ln.data[:ln.size]) }
 
-// Prints a new line.
-func (ln *Line) newLine() (err os.Error) {
-	if _, err = Output.Write(_NL); err != nil {
-		return
-	}
-	if _, err = Output.Write(cursorToleft); err != nil {
-		return
-	}
-
-	return nil
-}
-
 // Prints the primary prompt.
-func (ln *Line) prompt() (err os.Error) {
+func (ln *Line) prompt() {
 	ln.cursor, ln.size = 0, 0
 
-	if _, err = Output.Write(cursorToleft); err != nil {
-		return err
-	}
-	if _, err = fmt.Fprint(Output, ln.ps1); err != nil {
-		return err
-	}
-	if _, err = Output.Write(toleftDelRight); err != nil {
-		return err
-	}
+	output.Write(cursorToleft)
+	fmt.Fprint(output, ln.ps1)
+	output.Write(toleftDelRight)
 	// Move cursor after prompt.
-	if _, err = fmt.Fprintf(Output, "\033[%dC", ln.ps1Len); err != nil {
-		return err
-	}
-
-	return nil
+	fmt.Fprintf(output, "\033[%dC", ln.ps1Len)
 }
 
 // Refreshes the line.
-func (ln *Line) refresh() (err os.Error) {
-	if _, err = Output.Write(cursorToleft); err != nil {
-		return err
-	}
-	if _, err = fmt.Fprint(Output, ln.ps1); err != nil {
-		return err
-	}
-	if _, err = Output.Write(ln.toBytes()); err != nil {
-		return err
-	}
-	if _, err = Output.Write(toleftDelRight); err != nil {
-		return err
-	}
+func (ln *Line) refresh() {
+	output.Write(cursorToleft)
+	fmt.Fprint(output, ln.ps1)
+	output.Write(ln.toBytes())
+	output.Write(toleftDelRight)
 	// Move cursor to original position.
-	if _, err = fmt.Fprintf(Output, "\033[%dC", ln.ps1Len+ln.cursor); err != nil {
-		return err
-	}
-
-	return nil
+	fmt.Fprintf(output, "\033[%dC", ln.ps1Len+ln.cursor)
 }
 
 
@@ -193,14 +160,12 @@ func (ln *Line) Read() (line string, err os.Error) {
 	var anotherLine []int  // For lines got from history.
 	var isHistoryUsed bool // If the history has been accessed.
 
-	in := bufio.NewReader(Input) // Read input.
+	in := bufio.NewReader(input) // Read input.
 	seq := make([]byte, 2)       // For escape sequences.
 	seq2 := make([]byte, 2)      // Extended escape sequences.
 
 	// Primary prompt.
-	if err = ln.prompt(); err != nil {
-		return "", err
-	}
+	ln.prompt()
 
 	for {
 		rune, _, err := in.ReadRune()
@@ -210,12 +175,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 
 		switch rune {
 		default:
-			useRefresh, err := ln.Insert(rune)
-			if err != nil {
-				return "", err
-			}
-
-			if useRefresh {
+			if useRefresh := ln.InsertRune(rune); useRefresh {
 				ln.refresh()
 			}
 			continue
@@ -227,10 +187,8 @@ func (ln *Line) Read() (line string, err os.Error) {
 				ln.hist.Add(line)
 			}
 
-			if err = ln.newLine(); err != nil {
-				return "", err
-			}
-
+			output.Write(_NL)
+			output.Write(cursorToleft)
 			return strings.TrimSpace(line), nil
 
 		case 127, 8: // backspace, Ctrl-h
@@ -244,38 +202,21 @@ func (ln *Line) Read() (line string, err os.Error) {
 			continue
 
 		case 3: // Ctrl-c
-			useRefresh, err := ln.InsertRunes(ctrlC)
-
-			if err != nil {
-				return "", err
-			}
-			if useRefresh {
+			if useRefresh := ln.InsertRunes(ctrlC); useRefresh {
 				ln.refresh()
 			}
 
-			if _, err = Output.Write(_NL); err != nil {
-				return "", err
-			}
-			if err = ln.prompt(); err != nil {
-				return "", err
-			}
-
+			output.Write(_NL)
+			ln.prompt()
 			continue
 
 		case 4: // Ctrl-d
-			useRefresh, err := ln.InsertRunes(ctrlD)
-
-			if err != nil {
-				return "", err
-			}
-			if useRefresh {
+			if useRefresh := ln.InsertRunes(ctrlD); useRefresh {
 				ln.refresh()
 			}
 
-			if err = ln.newLine(); err != nil {
-				return "", err
-			}
-
+			output.Write(_NL)
+			output.Write(cursorToleft)
 			return "", ErrCtrlD
 
 		// Escape sequence
@@ -413,9 +354,6 @@ func (ln *Line) Read() (line string, err os.Error) {
 		ln.refresh()
 
 		continue
-
-	_error:
-		return "", err
 	}
 	return "", nil
 }
