@@ -45,13 +45,13 @@ There are several values by default:
 	func main() {
 		fmt.Println("Press ^D to exit\n")
 
-		hist, err := NewHistory(linoiseFile)
+		hist, err := linoise.NewHistory(historyFile)
 		if err != nil {
-			t.Error(err)
+			fmt.Fprintf(os.Stderr, err.String())
 		}
 		hist.Load()
 
-		ln := NewLine(hist)
+		ln := linoise.NewLine(hist)
 		defer ln.RestoreTerm()
 
 		for {
@@ -61,13 +61,13 @@ There are several values by default:
 			}
 		}
 
-		if err == ErrCtrlD {
+		if err == linoise.ErrCtrlD {
 			hist.Save()
 		} else {
 			fmt.Println(err)
 		}
 
-		//os.Remove(linoiseFile)
+		//os.Remove(historyFile)
 	}
 
 

@@ -110,7 +110,7 @@ func hasHistory(h *history) bool {
 // ===
 
 // Returns a slice of the contents of the buffer.
-func (ln *Line) Bytes() []byte {
+func (ln *Line) toBytes() []byte {
 	chars := make([]byte, ln.size*utf8.UTFMax)
 	var end, runeLen int
 
@@ -128,10 +128,10 @@ func (ln *Line) Bytes() []byte {
 }
 
 // Returns the contents of the buffer as a string.
-func (ln *Line) String() string { return string(ln.data[:ln.size]) }
+func (ln *Line) toString() string { return string(ln.data[:ln.size]) }
 
 // Prints the primary prompt.
-func (ln *Line) Prompt() (err os.Error) {
+func (ln *Line) prompt() (err os.Error) {
 	ln.cursor, ln.size = 0, 0
 
 	if _, err = Output.Write(cursorToleft); err != nil {
@@ -152,14 +152,14 @@ func (ln *Line) Prompt() (err os.Error) {
 }
 
 // Refreshes the line.
-func (ln *Line) Refresh() (err os.Error) {
+func (ln *Line) refresh() (err os.Error) {
 	if _, err = Output.Write(cursorToleft); err != nil {
 		return err
 	}
 	if _, err = fmt.Fprint(Output, ln.ps1); err != nil {
 		return err
 	}
-	if _, err = Output.Write(ln.Bytes()); err != nil {
+	if _, err = Output.Write(ln.toBytes()); err != nil {
 		return err
 	}
 	if _, err = Output.Write(toleftDelRight); err != nil {
@@ -186,7 +186,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 	seq2 := make([]byte, 2)      // Extended escape sequences.
 
 	// Primary prompt.
-	if err = ln.Prompt(); err != nil {
+	if err = ln.prompt(); err != nil {
 		return "", err
 	}
 
@@ -204,18 +204,20 @@ func (ln *Line) Read() (line string, err os.Error) {
 			}
 
 			if useRefresh {
-				ln.Refresh()
+				ln.refresh()
 			}
 			continue
 
 		case 13: // enter
-			line = ln.String()
+			line = ln.toString()
 
 			if ln.useHistory {
 				ln.hist.Add(line)
 			}
 
-			Output.Write(newLine)
+			if _, err = Output.Write(newLine); err != nil {
+				return "", err
+			}
 			return strings.TrimSpace(line), nil
 
 		case 127, 8: // backspace, Ctrl-h
@@ -235,10 +237,13 @@ func (ln *Line) Read() (line string, err os.Error) {
 				return "", err
 			}
 			if useRefresh {
-				ln.Refresh()
+				ln.refresh()
 			}
 
-			Output.Write(newLine)
+			if _, err = Output.Write(newLine); err != nil {
+				return "", err
+			}
+
 			goto _deleteLine
 
 		case 4: // Ctrl-d
@@ -248,10 +253,16 @@ func (ln *Line) Read() (line string, err os.Error) {
 				return "", err
 			}
 			if useRefresh {
-				ln.Refresh()
+				ln.refresh()
 			}
 
-			Output.Write(newLine)
+			if _, err = Output.Write(newLine); err != nil {
+				return "", err
+			}
+			if _, err = Output.Write(cursorToleft); err != nil {
+				return "", err
+			}
+
 			return "", ErrCtrlD
 
 		// Escape sequence
@@ -351,7 +362,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 		// the next one.
 		// TODO: it has to be removed before of to be saved the history
 		if !isHistoryUsed {
-			ln.hist.Add(ln.String())
+			ln.hist.Add(ln.toString())
 		}
 		isHistoryUsed = true
 
@@ -386,7 +397,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 		//goto _refresh
 
 	_refresh:
-		ln.Refresh()
+		ln.refresh()
 
 		continue
 
