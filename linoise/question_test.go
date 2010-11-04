@@ -37,6 +37,10 @@ func TestQuest(t *testing.T) {
 	bAns := q.ReadBool("Do you watch television?", true)
 	fmt.Printf("  answer: %t\n", bAns)
 
+	color := []string{"red", "blue", "black"}
+	ans = q.ReadChoice("What is you favorite color?", color)
+	fmt.Printf("  answer: %q\n", ans)
+
 	iAns := q.ReadIntDefault("What is your age?", 16)
 	fmt.Printf("  answer: %d\n", iAns)
 

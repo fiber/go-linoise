@@ -23,8 +23,8 @@ import (
 var (
 	QuestionPrefix      = " + " // String placed before of questions
 	QuestionErrPrefix   = "  "  // String placed before of error messages
-	QuestionTrueString  = "y"   // String to represent 'true'
-	QuestionFalseString = "n"   // String to represent 'false'
+	QuestionTrueString  = "y"   // String to represent 'true' by default
+	QuestionFalseString = "n"   // Idem but for 'false'
 
 	QuestionFloatFmt  byte = 'g' // Format for float numbers
 	QuestionFloatPrec int  = -1  // Precision for float numbers
@@ -106,18 +106,18 @@ func (q *Question) _baseReadString(prompt, defaultAnswer string, hasDefault bool
 	return ""
 }
 
-// Prints the question waiting until to press Return.
+// Prints the prompt waiting until to press Return.
 func (q *Question) ReadString(prompt string) string {
 	return q._baseReadString(prompt, "", false)
 }
 
-// Prints the question waiting until to press Return. If input is nil then
+// Prints the prompt waiting until to press Return. If input is nil then
 // it returns the answer by default.
 func (q *Question) ReadStringDefault(prompt, defaultAnswer string) string {
 	return q._baseReadString(prompt, defaultAnswer, true)
 }
 
-// Prints the question until to get an integer number.
+// Base to read integer numbers.
 func (q *Question) _baseReadInt(prompt string, defaultAnswer int, hasDefault bool) int {
 	line := q.getLine(prompt, strconv.Itoa(defaultAnswer), hasDefault)
 
@@ -143,18 +143,18 @@ func (q *Question) _baseReadInt(prompt string, defaultAnswer int, hasDefault boo
 	return 0
 }
 
-// Prints the question until to get an integer number.
+// Prints the prompt until to get an integer number.
 func (q *Question) ReadInt(prompt string) int {
 	return q._baseReadInt(prompt, 0, false)
 }
 
-// Prints the question until to get an integer number. If input is nil then
+// Prints the prompt until to get an integer number. If input is nil then
 // it returns the answer by default.
 func (q *Question) ReadIntDefault(prompt string, defaultAnswer int) int {
 	return q._baseReadInt(prompt, defaultAnswer, true)
 }
 
-// Prints the question until to get a float number.
+// Base to read float numbers.
 func (q *Question) _baseReadFloat(prompt string, defaultAnswer float, hasDefault bool) float {
 	line := q.getLine(
 		prompt,
@@ -184,18 +184,18 @@ func (q *Question) _baseReadFloat(prompt string, defaultAnswer float, hasDefault
 	return 0.0
 }
 
-// Prints the question until to get a float number.
+// Prints the prompt until to get a float number.
 func (q *Question) ReadFloat(prompt string) float {
 	return q._baseReadFloat(prompt, 0.0, false)
 }
 
-// Prints the question until to get a float number. If input is nil then
+// Prints the prompt until to get a float number. If input is nil then
 // it returns the answer by default.
 func (q *Question) ReadFloatDefault(prompt string, defaultAnswer float) float {
 	return q._baseReadFloat(prompt, defaultAnswer, true)
 }
 
-// Prints the question until to get a string that represents a boolean.
+// Prints the prompt until to get a string that represents a boolean.
 func (q *Question) ReadBool(prompt string, defaultAnswer bool) bool {
 	var options string
 
@@ -229,6 +229,46 @@ func (q *Question) ReadBool(prompt string, defaultAnswer bool) bool {
 	return false
 }
 
+// Base to read strings from a set.
+func (q *Question) _baseReadChoice(prompt string, a []string, defaultAnswer uint) string {
+	prompt = fmt.Sprintf("%s (%s)", prompt, strings.Join(a, ","))
+	line := q.getLine(prompt, a[defaultAnswer], true)
+
+	for {
+		answer, err := line.Read()
+		if err == ErrCtrlD {
+			break
+		}
+
+		if answer == "" {
+			return a[defaultAnswer]
+		}
+
+		for _, v := range a {
+			if answer == v {
+				return answer
+			}
+		}
+	}
+	return ""
+}
+
+// Prints the prompt until to get an element from array `a`. If input is nil
+// then it returns the first element of `a`.
+func (q *Question) ReadChoice(prompt string, a []string) string {
+	return q._baseReadChoice(prompt, a, 0)
+}
+
+// Prints the prompt until to get an element from array `a`. If input is nil
+// then it returns the answer by default which is the position inner array.
+func (q *Question) ReadChoiceDefault(prompt string, a []string, defaultAnswer uint) string {
+	if defaultAnswer >= uint(len(a)) {
+		panic(fmt.Sprintf("ReadChoiceDefault: element %d is not in array",
+			defaultAnswer))
+	}
+	return q._baseReadChoice(prompt, a, defaultAnswer)
+}
+
 
 // === Utility
 // ===
@@ -250,7 +290,7 @@ func atob(str string) (value bool, err os.Error) {
 	}
 
 	// Check extra characters, if any.
-	boolExtra, ok := ExtraBoolString[str]
+	boolExtra, ok := ExtraBoolString[strings.ToLower(str)]
 	if ok {
 		return boolExtra, nil
 	}

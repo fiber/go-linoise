@@ -9,6 +9,7 @@ Features:
 + Licensed under BSD, a liberal license
 + Unicode support
 + History
++ Facilitate reading related to questions
 
 
 ## Installation
