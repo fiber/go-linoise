@@ -38,17 +38,19 @@ const (
 	_L_BRACKET = 91 // Left square bracket: [
 )
 
+// Characters
+var (
+	_CR     = []byte{13}     // Carriage return (in hexadecimal: '\x0D')
+	newLine = []byte{13, 10} // CR+LF is used for output
+
+	ctrlC = []int("^C")
+	ctrlD = []int("^D")
+)
+
 // ANSI terminal escape controls
 var (
 	delScreen     = []byte("\033[2J")     // Erase the screen
 	DelRightAndCR = []byte("\033[0K\x0D") // Erase to right; carriage return
-)
-
-var (
-	_NL   = []byte{10} // New line
-	_CR   = []byte{13} // Carriage return (in hexadecimal: '\x0D')
-	ctrlC = []int("^C")
-	ctrlD = []int("^D")
 )
 
 
@@ -135,7 +137,6 @@ func (ln *Line) toString() string { return string(ln.data[:ln.size]) }
 func (ln *Line) prompt() {
 	ln.cursor, ln.size = 0, 0
 
-	output.Write(_CR)
 	fmt.Fprint(output, ln.ps1)
 	output.Write(DelRightAndCR)
 	// Move cursor after prompt.
@@ -187,8 +188,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 				ln.hist.Add(line)
 			}
 
-			output.Write(_NL)
-			output.Write(_CR)
+			output.Write(newLine)
 			return strings.TrimSpace(line), nil
 
 		case 127, 8: // backspace, Ctrl-h
@@ -206,7 +206,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 				ln.refresh()
 			}
 
-			output.Write(_NL)
+			output.Write(newLine)
 			ln.prompt()
 			continue
 
@@ -215,8 +215,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 				ln.refresh()
 			}
 
-			output.Write(_NL)
-			output.Write(_CR)
+			output.Write(newLine)
 			return "", ErrCtrlD
 
 		// Escape sequence

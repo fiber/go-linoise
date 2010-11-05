@@ -55,6 +55,6 @@ func TestQuest(t *testing.T) {
 }
 
 func print(v interface{}) {
-	fmt.Printf("  answer: %v\n", v)
+	fmt.Printf("  answer: %v\r\n", v)
 }
 

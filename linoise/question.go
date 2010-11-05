@@ -133,7 +133,7 @@ func (q *Question) _baseReadInt(prompt string, defaultAnswer int, hasDefault boo
 
 		answer, err := strconv.Atoi(input)
 		if err != nil {
-			fmt.Fprintf(output, "%s%q: value has to be an integer\n",
+			fmt.Fprintf(output, "%s%q: value has to be an integer\r\n",
 				QuestionErrPrefix, input)
 			continue
 		} else {
@@ -174,7 +174,7 @@ func (q *Question) _baseReadFloat(prompt string, defaultAnswer float, hasDefault
 
 		answer, err := strconv.Atof(input)
 		if err != nil {
-			fmt.Fprintf(output, "%s%q: value has to be a float\n",
+			fmt.Fprintf(output, "%s%q: value has to be a float\r\n",
 				QuestionErrPrefix, input)
 			continue
 		} else {
@@ -219,7 +219,7 @@ func (q *Question) ReadBool(prompt string, defaultAnswer bool) bool {
 
 		answer, err := atob(input)
 		if err != nil {
-			fmt.Fprintf(output, "%s%s: does not represent a boolean\n",
+			fmt.Fprintf(output, "%s%s: does not represent a boolean\r\n",
 				QuestionErrPrefix, input)
 			continue
 		} else {
