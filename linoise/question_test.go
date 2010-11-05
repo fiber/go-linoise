@@ -25,26 +25,36 @@ func TestQuest(t *testing.T) {
 		"o":   true,
 	}
 
+	fmt.Println("\n == Questions\n")
+
 	q := NewQuestion()
 	defer q.RestoreTerm()
 
 	ans := q.ReadString("What is your name?")
-	fmt.Printf("  answer: %q\n", ans)
+	print(ans)
 
 	ans = q.ReadStringDefault("What color is your hair?", "brown")
-	fmt.Printf("  answer: %q\n", ans)
+	print(ans)
 
 	bAns := q.ReadBool("Do you watch television?", true)
-	fmt.Printf("  answer: %t\n", bAns)
+	print(bAns)
 
 	color := []string{"red", "blue", "black"}
 	ans = q.ReadChoice("What is you favorite color?", color)
-	fmt.Printf("  answer: %q\n", ans)
+	print(ans)
 
 	iAns := q.ReadIntDefault("What is your age?", 16)
-	fmt.Printf("  answer: %d\n", iAns)
+	print(iAns)
 
 	fAns := q.ReadFloat("How tall are you?")
-	fmt.Printf("  answer: %f\n", fAns)
+	print(fAns)
+
+	if _, err := atob("not-found"); err == nil {
+		t.Error("should return an error")
+	}
+}
+
+func print(v interface{}) {
+	fmt.Printf("  answer: %v\n", v)
 }
 

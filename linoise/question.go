@@ -38,7 +38,7 @@ var ExtraBoolString = make(map[string]bool)
 // ===
 
 type Question struct {
-	trueString, falseString string
+	trueString, falseString string // Strings that represent booleans.
 }
 
 
@@ -219,7 +219,7 @@ func (q *Question) ReadBool(prompt string, defaultAnswer bool) bool {
 
 		answer, err := atob(input)
 		if err != nil {
-			fmt.Fprintf(output, "%s%q: does not represent a boolean\n",
+			fmt.Fprintf(output, "%s%s: does not represent a boolean\n",
 				QuestionErrPrefix, input)
 			continue
 		} else {
@@ -295,6 +295,6 @@ func atob(str string) (value bool, err os.Error) {
 		return boolExtra, nil
 	}
 
-	return false, os.NewError("wrong")
+	return false, err // Return error of 'strconv.Atob'
 }
 

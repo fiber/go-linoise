@@ -18,7 +18,7 @@ import (
 
 
 func TestUtility(t *testing.T) {
-	fmt.Println("\n\n == Terminal")
+	fmt.Println("\n == Terminal")
 
 	// === Read single key
 	term.KeyPress()
