@@ -89,30 +89,60 @@ func (q *Question) getLine(prompt, defaultAnswer string, hasDefault bool) *Line 
 	return NewLinePrompt(prompt, nil) // No history.
 }
 
-// Base to read strings.
-func (q *Question) _baseReadString(prompt, defaultAnswer string, hasDefault bool) string {
-	line := q.getLine(prompt, defaultAnswer, hasDefault)
+// Prints the prompt waiting to get a string not empty.
+func (q *Question) Read(prompt string) string {
+	line := q.getLine(prompt, "", false)
 
 	for {
 		answer, err := line.Read()
 		if answer != "" || err == ErrCtrlD {
 			return answer
 		}
-
-		if hasDefault {
-			return defaultAnswer
-		}
 	}
 	return ""
 }
 
-// Prints the prompt waiting until to press Return.
+// Base to read strings.
+func (q *Question) _baseReadString(prompt, defaultAnswer string, hasDefault bool) string {
+	line := q.getLine(prompt, defaultAnswer, hasDefault)
+
+	for {
+		answer, err := line.Read()
+		if err == ErrCtrlD {
+			return answer
+		}
+
+		if answer != "" {
+			// === Check if it is a number
+			if _, err := strconv.Atoi(answer); err == nil {
+				goto _error
+			}
+			if _, err := strconv.Atof(answer); err == nil {
+				goto _error
+			}
+
+			return answer
+		}
+
+		if hasDefault {
+			return defaultAnswer
+		}
+		continue
+
+	_error:
+		fmt.Fprintf(output, "%s%v: the value has to be a string\r\n",
+			QuestionErrPrefix, answer)
+	}
+	return ""
+}
+
+// Prints the prompt waiting to get a string.
 func (q *Question) ReadString(prompt string) string {
 	return q._baseReadString(prompt, "", false)
 }
 
-// Prints the prompt waiting until to press Return. If input is nil then
-// it returns the answer by default.
+// Prints the prompt waiting to get a string.
+// If input is nil then it returns the answer by default.
 func (q *Question) ReadStringDefault(prompt, defaultAnswer string) string {
 	return q._baseReadString(prompt, defaultAnswer, true)
 }
@@ -133,7 +163,7 @@ func (q *Question) _baseReadInt(prompt string, defaultAnswer int, hasDefault boo
 
 		answer, err := strconv.Atoi(input)
 		if err != nil {
-			fmt.Fprintf(output, "%s%q: value has to be an integer\r\n",
+			fmt.Fprintf(output, "%s%q: the value has to be an integer\r\n",
 				QuestionErrPrefix, input)
 			continue
 		} else {
@@ -143,13 +173,13 @@ func (q *Question) _baseReadInt(prompt string, defaultAnswer int, hasDefault boo
 	return 0
 }
 
-// Prints the prompt until to get an integer number.
+// Prints the prompt waiting to get an integer number.
 func (q *Question) ReadInt(prompt string) int {
 	return q._baseReadInt(prompt, 0, false)
 }
 
-// Prints the prompt until to get an integer number. If input is nil then
-// it returns the answer by default.
+// Prints the prompt waiting to get an integer number.
+// If input is nil then it returns the answer by default.
 func (q *Question) ReadIntDefault(prompt string, defaultAnswer int) int {
 	return q._baseReadInt(prompt, defaultAnswer, true)
 }
@@ -174,7 +204,7 @@ func (q *Question) _baseReadFloat(prompt string, defaultAnswer float, hasDefault
 
 		answer, err := strconv.Atof(input)
 		if err != nil {
-			fmt.Fprintf(output, "%s%q: value has to be a float\r\n",
+			fmt.Fprintf(output, "%s%q: the value has to be a float\r\n",
 				QuestionErrPrefix, input)
 			continue
 		} else {
@@ -184,18 +214,18 @@ func (q *Question) _baseReadFloat(prompt string, defaultAnswer float, hasDefault
 	return 0.0
 }
 
-// Prints the prompt until to get a float number.
+// Prints the prompt waiting to get a float number.
 func (q *Question) ReadFloat(prompt string) float {
 	return q._baseReadFloat(prompt, 0.0, false)
 }
 
-// Prints the prompt until to get a float number. If input is nil then
-// it returns the answer by default.
+// Prints the prompt waiting to get a float number.
+// If input is nil then it returns the answer by default.
 func (q *Question) ReadFloatDefault(prompt string, defaultAnswer float) float {
 	return q._baseReadFloat(prompt, defaultAnswer, true)
 }
 
-// Prints the prompt until to get a string that represents a boolean.
+// Prints the prompt waiting to get a string that represents a boolean.
 func (q *Question) ReadBool(prompt string, defaultAnswer bool) bool {
 	var options string
 
@@ -219,7 +249,7 @@ func (q *Question) ReadBool(prompt string, defaultAnswer bool) bool {
 
 		answer, err := atob(input)
 		if err != nil {
-			fmt.Fprintf(output, "%s%s: does not represent a boolean\r\n",
+			fmt.Fprintf(output, "%s%s: the value does not represent a boolean\r\n",
 				QuestionErrPrefix, input)
 			continue
 		} else {
@@ -253,14 +283,15 @@ func (q *Question) _baseReadChoice(prompt string, a []string, defaultAnswer uint
 	return ""
 }
 
-// Prints the prompt until to get an element from array `a`. If input is nil
-// then it returns the first element of `a`.
+// Prints the prompt waiting to get an element from array `a`.
+// If input is nil then it returns the first element of `a`.
 func (q *Question) ReadChoice(prompt string, a []string) string {
 	return q._baseReadChoice(prompt, a, 0)
 }
 
-// Prints the prompt until to get an element from array `a`. If input is nil
-// then it returns the answer by default which is the position inner array.
+// Prints the prompt waiting to get an element from array `a`.
+// If input is nil then it returns the answer by default which is the position
+// inner array.
 func (q *Question) ReadChoiceDefault(prompt string, a []string, defaultAnswer uint) string {
 	if defaultAnswer >= uint(len(a)) {
 		panic(fmt.Sprintf("ReadChoiceDefault: element %d is not in array",

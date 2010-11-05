@@ -30,7 +30,7 @@ func TestQuest(t *testing.T) {
 	q := NewQuestion()
 	defer q.RestoreTerm()
 
-	ans := q.ReadString("What is your name?")
+	ans := q.Read("What is your name?")
 	print(ans)
 
 	ans = q.ReadStringDefault("What color is your hair?", "brown")
