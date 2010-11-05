@@ -40,13 +40,13 @@ const (
 
 // ANSI terminal escape controls
 var (
-	cursorToleft   = []byte("\033[0G")        // Cursor to left edge.
-	delScreen      = []byte("\033[2J")        // Erase the screen.
-	toleftDelRight = []byte("\033[0K\033[0G") // Cursor to left; erase to right.
+	delScreen     = []byte("\033[2J")     // Erase the screen
+	DelRightAndCR = []byte("\033[0K\x0D") // Erase to right; carriage return
 )
 
 var (
-	_NL   = []byte{'\n'}
+	_NL   = []byte{10} // New line
+	_CR   = []byte{13} // Carriage return (in hexadecimal: '\x0D')
 	ctrlC = []int("^C")
 	ctrlD = []int("^D")
 )
@@ -135,19 +135,19 @@ func (ln *Line) toString() string { return string(ln.data[:ln.size]) }
 func (ln *Line) prompt() {
 	ln.cursor, ln.size = 0, 0
 
-	output.Write(cursorToleft)
+	output.Write(_CR)
 	fmt.Fprint(output, ln.ps1)
-	output.Write(toleftDelRight)
+	output.Write(DelRightAndCR)
 	// Move cursor after prompt.
 	fmt.Fprintf(output, "\033[%dC", ln.ps1Len)
 }
 
 // Refreshes the line.
 func (ln *Line) refresh() {
-	output.Write(cursorToleft)
+	output.Write(_CR)
 	fmt.Fprint(output, ln.ps1)
 	output.Write(ln.toBytes())
-	output.Write(toleftDelRight)
+	output.Write(DelRightAndCR)
 	// Move cursor to original position.
 	fmt.Fprintf(output, "\033[%dC", ln.ps1Len+ln.cursor)
 }
@@ -188,7 +188,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 			}
 
 			output.Write(_NL)
-			output.Write(cursorToleft)
+			output.Write(_CR)
 			return strings.TrimSpace(line), nil
 
 		case 127, 8: // backspace, Ctrl-h
@@ -216,7 +216,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 			}
 
 			output.Write(_NL)
-			output.Write(cursorToleft)
+			output.Write(_CR)
 			return "", ErrCtrlD
 
 		// Escape sequence
