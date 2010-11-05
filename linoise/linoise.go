@@ -7,6 +7,10 @@
 // OR CONDITIONS OF ANY KIND, either express or implied. See the License
 // for more details.
 
+/* Important: linoise sets tty in 'raw mode' so there is to use CR+LF (\r\n) at
+writing.
+*/
+
 package linoise
 
 import (
@@ -95,7 +99,7 @@ func NewLine(hist *history) *Line {
 	}
 }
 
-// Restores terminal settings.
+// Restores terminal settings so it is disabled the raw mode.
 func (ln *Line) RestoreTerm() {
 	term.RestoreTerm()
 }
