@@ -9,7 +9,8 @@ Features:
 + Licensed under BSD, a liberal license
 + Unicode support
 + History
-+ Facilitate reading related to questions
++ Facilitate reading related to questions where the answers by default are set
+ to bold
 
 
 ## Installation
@@ -30,45 +31,7 @@ There are several values by default:
 
 ## Operating instructions
 
-	package main
-
-	import (
-		"fmt"
-		"os"
-		"path"
-
-		"github.com/kless/go-linoise/linoise"
-	)
-
-	var historyFile = path.Join(os.TempDir(), "go_linoise")
-
-
-	func main() {
-		fmt.Println("Press ^D to exit\n")
-
-		hist, err := linoise.NewHistory(historyFile)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, err.String())
-		}
-		hist.Load()
-
-		ln := linoise.NewLine(hist)
-		defer ln.RestoreTerm()
-
-		for {
-			if _, err = ln.Read(); err != nil {
-				if err == linoise.ErrCtrlD {
-					hist.Save()
-				} else {
-					fmt.Fprintf(os.Stderr, err.String())
-				}
-
-				break
-			}
-		}
-
-		//os.Remove(historyFile)
-	}
+Read files *linoise_test.go* and *question_test.go*.
 
 
 ## Copyright and licensing
