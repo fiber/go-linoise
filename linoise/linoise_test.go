@@ -33,14 +33,14 @@ func TestLinoise(t *testing.T) {
 	defer ln.RestoreTerm()
 
 	for {
-		_, err = ln.Read()
-		if err != nil {
+		if _, err = ln.Read(); err != nil {
+			if err == ErrCtrlD {
+				hist.Save()
+			}
+			fmt.Fprintf(os.Stderr, err.String())
+
 			break
 		}
-	}
-
-	if err == ErrCtrlD {
-		hist.Save()
 	}
 
 	//os.Remove(linoiseFile)

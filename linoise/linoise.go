@@ -138,23 +138,43 @@ func (ln *Line) toBytes() []byte {
 func (ln *Line) toString() string { return string(ln.data[:ln.size]) }
 
 // Prints the primary prompt.
-func (ln *Line) prompt() {
+func (ln *Line) prompt() (err os.Error) {
 	ln.cursor, ln.size = 0, 0
 
-	fmt.Fprint(output, ln.ps1)
-	output.Write(DelRightAndCR)
+	if _, err = fmt.Fprint(output, ln.ps1); err != nil {
+		return
+	}
+	if _, err = output.Write(DelRightAndCR); err != nil {
+		return
+	}
 	// Move cursor after prompt.
-	fmt.Fprintf(output, "\033[%dC", ln.ps1Len)
+	if _, err = fmt.Fprintf(output, "\033[%dC", ln.ps1Len); err != nil {
+		return
+	}
+
+	return nil
 }
 
 // Refreshes the line.
-func (ln *Line) refresh() {
-	output.Write(_CR)
-	fmt.Fprint(output, ln.ps1)
-	output.Write(ln.toBytes())
-	output.Write(DelRightAndCR)
+func (ln *Line) refresh() (err os.Error) {
+	if _, err = output.Write(_CR); err != nil {
+		return
+	}
+	if _, err = fmt.Fprint(output, ln.ps1); err != nil {
+		return
+	}
+	if _, err = output.Write(ln.toBytes()); err != nil {
+		return
+	}
+	if _, err = output.Write(DelRightAndCR); err != nil {
+		return
+	}
 	// Move cursor to original position.
-	fmt.Fprintf(output, "\033[%dC", ln.ps1Len+ln.cursor)
+	if _, err = fmt.Fprintf(output, "\033[%dC", ln.ps1Len+ln.cursor); err != nil {
+		return
+	}
+
+	return nil
 }
 
 
@@ -170,19 +190,29 @@ func (ln *Line) Read() (line string, err os.Error) {
 	seq2 := make([]byte, 2)      // Extended escape sequences.
 
 	// Primary prompt.
-	ln.prompt()
+	if err = ln.prompt(); err != nil {
+		return "", err
+	}
 
 	for {
 		rune, _, err := in.ReadRune()
 		if err != nil {
-			panic("ReadRune: " + err.String())
+			return "", err
 		}
 
 		switch rune {
 		default:
-			if useRefresh := ln.InsertRune(rune); useRefresh {
-				ln.refresh()
+			useRefresh, err := ln.InsertRune(rune)
+
+			if err != nil {
+				return "", err
 			}
+			if useRefresh {
+				if err = ln.refresh(); err != nil {
+					return "", err
+				}
+			}
+
 			continue
 
 		case 13: // enter
@@ -192,7 +222,10 @@ func (ln *Line) Read() (line string, err os.Error) {
 				ln.hist.Add(line)
 			}
 
-			output.Write(newLine)
+			if _, err = output.Write(newLine); err != nil {
+				return "", err
+			}
+
 			return strings.TrimSpace(line), nil
 
 		case 127, 8: // backspace, Ctrl-h
@@ -206,26 +239,48 @@ func (ln *Line) Read() (line string, err os.Error) {
 			continue
 
 		case 3: // Ctrl-c
-			if useRefresh := ln.InsertRunes(ctrlC); useRefresh {
-				ln.refresh()
+			useRefresh, err := ln.InsertRunes(ctrlC)
+
+			if err != nil {
+				return "", err
+			}
+			if useRefresh {
+				if err = ln.refresh(); err != nil {
+					return "", err
+				}
 			}
 
-			output.Write(newLine)
-			ln.prompt()
+			if _, err = output.Write(newLine); err != nil {
+				return "", err
+			}
+			if err = ln.prompt(); err != nil {
+				return "", err
+			}
+
 			continue
 
 		case 4: // Ctrl-d
-			if useRefresh := ln.InsertRunes(ctrlD); useRefresh {
-				ln.refresh()
+			useRefresh, err := ln.InsertRunes(ctrlD)
+
+			if err != nil {
+				return "", err
+			}
+			if useRefresh {
+				if err = ln.refresh(); err != nil {
+					return "", err
+				}
 			}
 
-			output.Write(newLine)
+			if _, err = output.Write(newLine); err != nil {
+				return "", err
+			}
+
 			return "", ErrCtrlD
 
 		// Escape sequence
 		case _ESC:
 			if _, err = in.Read(seq); err != nil {
-				panic("Read: " + err.String())
+				return "", err
 			}
 			//fmt.Print(" >", seq) //!!! For DEBUG
 
@@ -242,7 +297,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 				// Extended escape.
 				if seq[1] > 48 && seq[1] < 55 {
 					if _, err = in.Read(seq2); err != nil {
-						panic("Read: " + err.String())
+						return "", err
 					}
 					//fmt.Print(" >>", seq2) //!!! For DEBUG
 
@@ -354,7 +409,9 @@ func (ln *Line) Read() (line string, err os.Error) {
 		//goto _refresh
 
 	_refresh:
-		ln.refresh()
+		if err = ln.refresh(); err != nil {
+			return "", err
+		}
 
 		continue
 	}

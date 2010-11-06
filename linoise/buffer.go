@@ -10,6 +10,7 @@
 package linoise
 
 import (
+	"os"
 	"utf8"
 )
 
@@ -45,14 +46,17 @@ func (b *buffer) grow(n int) {
 }
 
 // Inserts a character in the cursor position.
-func (b *buffer) InsertRune(rune int) (useRefresh bool) {
+func (b *buffer) InsertRune(rune int) (useRefresh bool, err os.Error) {
 	b.grow(b.size + 1) // Check if there is free space for one more character
 
 	// Avoid a full update of the line.
 	if b.cursor == b.size {
 		char := make([]byte, utf8.UTFMax)
 		utf8.EncodeRune(rune, char)
-		output.Write(char)
+
+		if _, err = output.Write(char); err != nil {
+			return
+		}
 	} else {
 		useRefresh = true
 		copy(b.data[b.cursor+1:b.size+1], b.data[b.cursor:b.size])
@@ -66,9 +70,12 @@ func (b *buffer) InsertRune(rune int) (useRefresh bool) {
 }
 
 // Inserts several characters.
-func (b *buffer) InsertRunes(runes []int) (useRefresh bool) {
+func (b *buffer) InsertRunes(runes []int) (useRefresh bool, err os.Error) {
 	for _, r := range runes {
-		useRefresh = b.InsertRune(r)
+		useRefresh, err = b.InsertRune(r)
+		if err != nil {
+			return
+		}
 	}
 	return
 }

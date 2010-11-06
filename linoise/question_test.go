@@ -11,6 +11,7 @@ package linoise
 
 import (
 	"fmt"
+	"os"
 	"testing"
 )
 
@@ -30,31 +31,35 @@ func TestQuest(t *testing.T) {
 	q := NewQuestion()
 	defer q.RestoreTerm()
 
-	ans := q.Read("What is your name?")
-	print(ans)
+	ans, err := q.Read("What is your name?")
+	print(ans, err)
 
-	ans = q.ReadStringDefault("What color is your hair?", "brown")
-	print(ans)
+	ans, err = q.ReadStringDefault("What color is your hair?", "brown")
+	print(ans, err)
 
-	bAns := q.ReadBool("Do you watch television?", true)
-	print(bAns)
+	bAns, err := q.ReadBool("Do you watch television?", true)
+	print(bAns, err)
 
 	color := []string{"red", "blue", "black"}
-	ans = q.ReadChoice("What is you favorite color?", color)
-	print(ans)
+	ans, err = q.ReadChoice("What is you favorite color?", color)
+	print(ans, err)
 
-	iAns := q.ReadIntDefault("What is your age?", 16)
-	print(iAns)
+	iAns, err := q.ReadIntDefault("What is your age?", 16)
+	print(iAns, err)
 
-	fAns := q.ReadFloat("How tall are you?")
-	print(fAns)
+	fAns, err := q.ReadFloat("How tall are you?")
+	print(fAns, err)
 
 	if _, err := atob("not-found"); err == nil {
 		t.Error("should return an error")
 	}
 }
 
-func print(v interface{}) {
-	fmt.Printf("  answer: %v\r\n", v)
+func print(a interface{}, err os.Error) {
+	if err == nil {
+		fmt.Printf("  answer: %v\r\n", a)
+	} else if err != ErrCtrlD {
+		fmt.Printf(err.String() + "\r\n")
+	}
 }
 
