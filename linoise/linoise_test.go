@@ -36,8 +36,9 @@ func TestLinoise(t *testing.T) {
 		if _, err = ln.Read(); err != nil {
 			if err == ErrCtrlD {
 				hist.Save()
+			} else {
+				fmt.Fprintf(os.Stderr, err.String())
 			}
-			fmt.Fprintf(os.Stderr, err.String())
 
 			break
 		}
