@@ -71,7 +71,7 @@ type Line struct {
 	hist       *history // History file
 }
 
-// Gets a line type using the given prompt as primary.
+// Gets a line type using the given prompt as primary. Sets the TTY raw mode.
 func NewLinePrompt(prompt string, hist *history) *Line {
 	term.MakeRaw()
 
@@ -85,7 +85,7 @@ func NewLinePrompt(prompt string, hist *history) *Line {
 	}
 }
 
-// Gets a line type using the primary prompt by default.
+// Gets a line type using the primary prompt by default. Sets the TTY raw mode.
 func NewLine(hist *history) *Line {
 	term.MakeRaw()
 
@@ -142,14 +142,14 @@ func (ln *Line) prompt() (err os.Error) {
 	ln.cursor, ln.size = 0, 0
 
 	if _, err = fmt.Fprint(output, ln.ps1); err != nil {
-		return
+		return OutputError(err.String())
 	}
 	if _, err = output.Write(DelRightAndCR); err != nil {
-		return
+		return OutputError(err.String())
 	}
 	// Move cursor after prompt.
 	if _, err = fmt.Fprintf(output, "\033[%dC", ln.ps1Len); err != nil {
-		return
+		return OutputError(err.String())
 	}
 
 	return nil
@@ -158,20 +158,20 @@ func (ln *Line) prompt() (err os.Error) {
 // Refreshes the line.
 func (ln *Line) refresh() (err os.Error) {
 	if _, err = output.Write(_CR); err != nil {
-		return
+		return OutputError(err.String())
 	}
 	if _, err = fmt.Fprint(output, ln.ps1); err != nil {
-		return
+		return OutputError(err.String())
 	}
 	if _, err = output.Write(ln.toBytes()); err != nil {
-		return
+		return OutputError(err.String())
 	}
 	if _, err = output.Write(DelRightAndCR); err != nil {
-		return
+		return OutputError(err.String())
 	}
 	// Move cursor to original position.
 	if _, err = fmt.Fprintf(output, "\033[%dC", ln.ps1Len+ln.cursor); err != nil {
-		return
+		return OutputError(err.String())
 	}
 
 	return nil
@@ -181,6 +181,9 @@ func (ln *Line) refresh() (err os.Error) {
 // === Get
 // ===
 
+// Reads charactes from input to write them to output, allowing line editing.
+// The errors that could return are to indicate if Ctrl-D was pressed, and for
+// both input / output errors.
 func (ln *Line) Read() (line string, err os.Error) {
 	var anotherLine []int  // For lines got from history.
 	var isHistoryUsed bool // If the history has been accessed.
@@ -197,13 +200,12 @@ func (ln *Line) Read() (line string, err os.Error) {
 	for {
 		rune, _, err := in.ReadRune()
 		if err != nil {
-			return "", err
+			return "", InputError(err.String())
 		}
 
 		switch rune {
 		default:
 			useRefresh, err := ln.InsertRune(rune)
-
 			if err != nil {
 				return "", err
 			}
@@ -223,7 +225,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 			}
 
 			if _, err = output.Write(newLine); err != nil {
-				return "", err
+				return "", OutputError(err.String())
 			}
 
 			return strings.TrimSpace(line), nil
@@ -240,7 +242,6 @@ func (ln *Line) Read() (line string, err os.Error) {
 
 		case 3: // Ctrl-c
 			useRefresh, err := ln.InsertRunes(ctrlC)
-
 			if err != nil {
 				return "", err
 			}
@@ -251,7 +252,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 			}
 
 			if _, err = output.Write(newLine); err != nil {
-				return "", err
+				return "", OutputError(err.String())
 			}
 			if err = ln.prompt(); err != nil {
 				return "", err
@@ -261,7 +262,6 @@ func (ln *Line) Read() (line string, err os.Error) {
 
 		case 4: // Ctrl-d
 			useRefresh, err := ln.InsertRunes(ctrlD)
-
 			if err != nil {
 				return "", err
 			}
@@ -272,7 +272,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 			}
 
 			if _, err = output.Write(newLine); err != nil {
-				return "", err
+				return "", OutputError(err.String())
 			}
 
 			return "", ErrCtrlD
@@ -280,7 +280,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 		// Escape sequence
 		case _ESC:
 			if _, err = in.Read(seq); err != nil {
-				return "", err
+				return "", InputError(err.String())
 			}
 			//fmt.Print(" >", seq) //!!! For DEBUG
 
@@ -297,7 +297,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 				// Extended escape.
 				if seq[1] > 48 && seq[1] < 55 {
 					if _, err = in.Read(seq2); err != nil {
-						return "", err
+						return "", InputError(err.String())
 					}
 					//fmt.Print(" >>", seq2) //!!! For DEBUG
 
@@ -352,7 +352,6 @@ func (ln *Line) Read() (line string, err os.Error) {
 			seq[1] = 66
 			goto _upDownArrow
 		}
-			continue // To be safe.
 
 	_upDownArrow: // Up and down arrow: history
 		if !ln.useHistory {
@@ -362,7 +361,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 		// Up
 		if seq[1] == 65 {
 			anotherLine, err = ln.hist.Prev()
-			// Down
+		// Down
 		} else {
 			anotherLine, err = ln.hist.Next()
 		}
@@ -412,9 +411,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 		if err = ln.refresh(); err != nil {
 			return "", err
 		}
-
-		continue
 	}
-	return "", nil
+	return
 }
 

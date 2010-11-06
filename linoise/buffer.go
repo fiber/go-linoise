@@ -55,7 +55,7 @@ func (b *buffer) InsertRune(rune int) (useRefresh bool, err os.Error) {
 		utf8.EncodeRune(rune, char)
 
 		if _, err = output.Write(char); err != nil {
-			return
+			return false, OutputError(err.String())
 		}
 	} else {
 		useRefresh = true

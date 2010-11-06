@@ -15,22 +15,34 @@ import (
 )
 
 
+var (
+	ErrCtrlD = os.NewError("Interrumpted (Ctrl-d)")
+
+	ErrEmptyHist  = os.NewError("history: empty")
+	ErrNilElement = os.NewError("history: no more elements")
+)
+
+
+// Represents a failure on input.
+type InputError string
+
+func (i InputError) String() string {
+	return "could not read from input: " + string(i)
+}
+
+
+// Represents a failure in output.
+type OutputError string
+
+func (o OutputError) String() string {
+	return "could not write to output: " + string(o)
+}
+
+
 // The error representing an invalid history size.
 type HistSizeError int
 
-func (self HistSizeError) String() string {
-	return "history: bad size " + strconv.Itoa(int(self))
+func (h HistSizeError) String() string {
+	return "history: bad size " + strconv.Itoa(int(h))
 }
-
-// ===
-
-type error struct {
-	os.ErrorString
-}
-
-var (
-	ErrCtrlD      = &error{"Interrumpted: End of Transmission (Ctrl-d)"}
-	ErrEmptyHist  = &error{"history: empty"}
-	ErrNilElement = &error{"history: no more elements"}
-)
 
