@@ -56,14 +56,15 @@ There are several values by default:
 		defer ln.RestoreTerm()
 
 		for {
-			_, err = ln.Read()
-			if err != nil {
+			if _, err = ln.Read(); err != nil {
+				if err == linoise.ErrCtrlD {
+					hist.Save()
+				} else {
+					fmt.Fprintf(os.Stderr, err.String())
+				}
+
 				break
 			}
-		}
-
-		if err == linoise.ErrCtrlD {
-			hist.Save()
 		}
 
 		//os.Remove(historyFile)
