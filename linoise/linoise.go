@@ -71,19 +71,6 @@ type Line struct {
 	hist       *history // History file
 }
 
-// Gets a line type using the given prompt as primary. Sets the TTY raw mode.
-func NewLinePrompt(prompt string, hist *history) *Line {
-	term.MakeRaw()
-
-	return &Line{
-		hasHistory(hist),
-		len(prompt),
-		prompt,
-		PS2,
-		newBuffer(),
-		hist,
-	}
-}
 
 // Gets a line type using the primary prompt by default. Sets the TTY raw mode.
 func NewLine(hist *history) *Line {
@@ -93,6 +80,21 @@ func NewLine(hist *history) *Line {
 		hasHistory(hist),
 		len(PS1),
 		PS1,
+		PS2,
+		newBuffer(),
+		hist,
+	}
+}
+
+// Gets a line type using the given prompt as primary. Sets the TTY raw mode.
+// 'ansiLen' is the length of ANSI codes that the prompt have.
+func NewLinePrompt(prompt string, ansiLen int, hist *history) *Line {
+	term.MakeRaw()
+
+	return &Line{
+		hasHistory(hist),
+		len(prompt) - ansiLen,
+		prompt,
 		PS2,
 		newBuffer(),
 		hist,

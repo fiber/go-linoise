@@ -33,8 +33,23 @@ var (
 // To pass strings in another languages.
 var ExtraBoolString = make(map[string]bool)
 
+// ANSI codes to set graphic mode
+const (
+	setOff  = "\033[0m" // All attributes off
+	setBold = "\033[1m" // Bold on
+)
 
-// === Type
+// Represents if a question has some answer by default.
+type hasDefault int
+
+const (
+	_DEFAULT_NO hasDefault = iota
+	_DEFAULT_SIMPLE
+	_DEFAULT_MULTIPLE
+)
+
+
+// === Types
 // ===
 
 type Question struct {
@@ -70,11 +85,20 @@ func (q *Question) RestoreTerm() {
 
 
 // Gets a line type ready to show questions.
-func (q *Question) getLine(prompt, defaultAnswer string, hasDefault bool) *Line {
+func (q *Question) getLine(prompt, defaultAnswer string, def hasDefault) *Line {
+	var ansiLen int
+
+	// The values by default are set to bold.
+	if def != _DEFAULT_NO {
+		ansiLen = len(setBold) + len(setOff)
+	}
+
 	prompt = QuestionPrefix + prompt
 
 	// Add the value by default
-	if hasDefault {
+	if def == _DEFAULT_SIMPLE {
+		prompt = fmt.Sprintf("%s [%s%s%s]", prompt, setBold, defaultAnswer, setOff)
+	} else if def == _DEFAULT_MULTIPLE {
 		prompt = fmt.Sprintf("%s [%s]", prompt, defaultAnswer)
 	}
 
@@ -85,12 +109,12 @@ func (q *Question) getLine(prompt, defaultAnswer string, hasDefault bool) *Line 
 		prompt += ": "
 	}
 
-	return NewLinePrompt(prompt, nil) // No history.
+	return NewLinePrompt(prompt, ansiLen, nil) // No history.
 }
 
 // Prints the prompt waiting to get a string not empty.
 func (q *Question) Read(prompt string) (answer string, err os.Error) {
-	line := q.getLine(prompt, "", false)
+	line := q.getLine(prompt, "", _DEFAULT_NO)
 
 	for {
 		answer, err = line.Read()
@@ -105,8 +129,8 @@ func (q *Question) Read(prompt string) (answer string, err os.Error) {
 }
 
 // Base to read strings.
-func (q *Question) _baseReadString(prompt, defaultAnswer string, hasDefault bool) (answer string, err os.Error) {
-	line := q.getLine(prompt, defaultAnswer, hasDefault)
+func (q *Question) _baseReadString(prompt, defaultAnswer string, def hasDefault) (answer string, err os.Error) {
+	line := q.getLine(prompt, defaultAnswer, def)
 
 	for {
 		answer, err = line.Read()
@@ -125,7 +149,7 @@ func (q *Question) _baseReadString(prompt, defaultAnswer string, hasDefault bool
 			return answer, nil
 		}
 
-		if hasDefault {
+		if def != _DEFAULT_NO {
 			return defaultAnswer, nil
 		}
 		continue
@@ -139,25 +163,25 @@ func (q *Question) _baseReadString(prompt, defaultAnswer string, hasDefault bool
 
 // Prints the prompt waiting to get a string.
 func (q *Question) ReadString(prompt string) (answer string, err os.Error) {
-	return q._baseReadString(prompt, "", false)
+	return q._baseReadString(prompt, "", _DEFAULT_NO)
 }
 
 // Prints the prompt waiting to get a string.
 // If input is nil then it returns the answer by default.
 func (q *Question) ReadStringDefault(prompt, defaultAnswer string) (answer string, err os.Error) {
-	return q._baseReadString(prompt, defaultAnswer, true)
+	return q._baseReadString(prompt, defaultAnswer, _DEFAULT_SIMPLE)
 }
 
 // Base to read integer numbers.
-func (q *Question) _baseReadInt(prompt string, defaultAnswer int, hasDefault bool) (answer int, err os.Error) {
-	line := q.getLine(prompt, strconv.Itoa(defaultAnswer), hasDefault)
+func (q *Question) _baseReadInt(prompt string, defaultAnswer int, def hasDefault) (answer int, err os.Error) {
+	line := q.getLine(prompt, strconv.Itoa(defaultAnswer), def)
 
 	for {
 		input, err := line.Read()
 		if err != nil {
 			return 0, err
 		}
-		if input == "" && hasDefault {
+		if input == "" && def != _DEFAULT_NO {
 			return defaultAnswer, nil
 		}
 
@@ -175,21 +199,21 @@ func (q *Question) _baseReadInt(prompt string, defaultAnswer int, hasDefault boo
 
 // Prints the prompt waiting to get an integer number.
 func (q *Question) ReadInt(prompt string) (answer int, err os.Error) {
-	return q._baseReadInt(prompt, 0, false)
+	return q._baseReadInt(prompt, 0, _DEFAULT_NO)
 }
 
 // Prints the prompt waiting to get an integer number.
 // If input is nil then it returns the answer by default.
 func (q *Question) ReadIntDefault(prompt string, defaultAnswer int) (answer int, err os.Error) {
-	return q._baseReadInt(prompt, defaultAnswer, true)
+	return q._baseReadInt(prompt, defaultAnswer, _DEFAULT_SIMPLE)
 }
 
 // Base to read float numbers.
-func (q *Question) _baseReadFloat(prompt string, defaultAnswer float, hasDefault bool) (answer float, err os.Error) {
+func (q *Question) _baseReadFloat(prompt string, defaultAnswer float, def hasDefault) (answer float, err os.Error) {
 	line := q.getLine(
 		prompt,
 		strconv.Ftoa(defaultAnswer, QuestionFloatFmt, QuestionFloatPrec),
-		hasDefault,
+		def,
 	)
 
 	for {
@@ -197,7 +221,7 @@ func (q *Question) _baseReadFloat(prompt string, defaultAnswer float, hasDefault
 		if err != nil {
 			return 0.0, err
 		}
-		if input == "" && hasDefault {
+		if input == "" && def != _DEFAULT_NO {
 			return defaultAnswer, nil
 		}
 
@@ -215,13 +239,13 @@ func (q *Question) _baseReadFloat(prompt string, defaultAnswer float, hasDefault
 
 // Prints the prompt waiting to get a float number.
 func (q *Question) ReadFloat(prompt string) (answer float, err os.Error) {
-	return q._baseReadFloat(prompt, 0.0, false)
+	return q._baseReadFloat(prompt, 0.0, _DEFAULT_NO)
 }
 
 // Prints the prompt waiting to get a float number.
 // If input is nil then it returns the answer by default.
 func (q *Question) ReadFloatDefault(prompt string, defaultAnswer float) (answer float, err os.Error) {
-	return q._baseReadFloat(prompt, defaultAnswer, true)
+	return q._baseReadFloat(prompt, defaultAnswer, _DEFAULT_SIMPLE)
 }
 
 // Prints the prompt waiting to get a string that represents a boolean.
@@ -229,12 +253,14 @@ func (q *Question) ReadBool(prompt string, defaultAnswer bool) (answer bool, err
 	var options string
 
 	if defaultAnswer {
-		options = fmt.Sprintf("%s/%s", strings.ToUpper(q.trueString), q.falseString)
+		options = fmt.Sprintf("%s%s%s/%s", setBold, q.trueString, setOff,
+			q.falseString)
 	} else {
-		options = fmt.Sprintf("%s/%s", q.trueString, strings.ToUpper(q.falseString))
+		options = fmt.Sprintf("%s/%s%s%s", q.trueString,
+			setBold, q.falseString, setOff)
 	}
 
-	line := q.getLine(prompt, options, true)
+	line := q.getLine(prompt, options, _DEFAULT_MULTIPLE)
 
 	for {
 		input, err := line.Read()
@@ -259,8 +285,11 @@ func (q *Question) ReadBool(prompt string, defaultAnswer bool) (answer bool, err
 
 // Base to read strings from a set.
 func (q *Question) _baseReadChoice(prompt string, a []string, defaultAnswer uint) (answer string, err os.Error) {
-	prompt = fmt.Sprintf("%s (%s)", prompt, strings.Join(a, ","))
-	line := q.getLine(prompt, a[defaultAnswer], true)
+	// Saves the value without ANSI to get it when it's set the answer by default.
+	def := a[defaultAnswer]
+	a[defaultAnswer] = setBold + def + setOff
+
+	line := q.getLine(prompt, strings.Join(a, ","), _DEFAULT_MULTIPLE)
 
 	for {
 		answer, err = line.Read()
@@ -268,7 +297,7 @@ func (q *Question) _baseReadChoice(prompt string, a []string, defaultAnswer uint
 			return "", err
 		}
 		if answer == "" {
-			return a[defaultAnswer], nil
+			return def, nil
 		}
 
 		for _, v := range a {
@@ -318,7 +347,7 @@ func atob(str string) (value bool, err os.Error) {
 	}
 
 	// Check extra characters, if any.
-	boolExtra, ok := ExtraBoolString[strings.ToLower(str)]
+	boolExtra, ok := ExtraBoolString[str]
 	if ok {
 		return boolExtra, nil
 	}
