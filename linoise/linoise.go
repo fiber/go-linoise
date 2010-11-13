@@ -45,7 +45,7 @@ type Line struct {
 	ps1Len     int      // Primary prompt size
 	ps1        string   // Primary prompt
 	ps2        string   // Command continuations
-	*buffer             // Text buffer
+	buf        *buffer  // Text buffer
 	hist       *history // History file
 }
 
@@ -104,7 +104,7 @@ func hasHistory(h *history) bool {
 
 // Prints the primary prompt.
 func (ln *Line) prompt() (err os.Error) {
-	if lines, err = ln.end(); err != nil {
+	if lines, err = ln.buf.end(); err != nil {
 		return err
 	}
 
@@ -122,7 +122,7 @@ func (ln *Line) prompt() (err os.Error) {
 		return OutputError(err.String())
 	}
 
-	ln.pos, ln.size = ln.ps1Len, ln.ps1Len
+	ln.buf.pos, ln.buf.size = ln.ps1Len, ln.ps1Len
 	return
 }
 
@@ -149,13 +149,13 @@ func (ln *Line) Read() (line string, err os.Error) {
 
 		switch rune {
 		default:
-			if err = ln.insertRune(rune); err != nil {
+			if err = ln.buf.insertRune(rune); err != nil {
 				return "", err
 			}
 			continue
 
 		case 13: // enter
-			line = ln.toString()
+			line = ln.buf.toString()
 
 			if ln.useHistory {
 				ln.hist.Add(line)
@@ -168,7 +168,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 			return strings.TrimSpace(line), nil
 
 		case 127, 8: // backspace, Ctrl-h
-			if err = ln.deletePrev(); err != nil {
+			if err = ln.buf.deletePrev(); err != nil {
 				return "", err
 			}
 			continue
@@ -178,7 +178,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 			continue
 
 		case 3: // Ctrl-c
-			if err = ln.insertRunes(ctrlC); err != nil {
+			if err = ln.buf.insertRunes(ctrlC); err != nil {
 				return "", err
 			}
 			if _, err = output.Write(_CR_LF); err != nil {
@@ -191,7 +191,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 			continue
 
 		case 4: // Ctrl-d
-			if err = ln.insertRunes(ctrlD); err != nil {
+			if err = ln.buf.insertRunes(ctrlD); err != nil {
 				return "", err
 			}
 			if _, err = output.Write(_CR_LF); err != nil {
@@ -226,7 +226,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 
 					// TODO: doesn't works
 					if seq[1] == 51 && seq2[0] == 126 { // Delete
-						if err = ln.delete(); err != nil {
+						if err = ln.buf.delete(); err != nil {
 							return "", err
 						}
 					}
@@ -245,7 +245,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 			continue
 
 		case 20: // Ctrl-t, swap actual character by the previous one.
-			if err = ln.swap(); err != nil {
+			if err = ln.buf.swap(); err != nil {
 				return "", err
 			}
 			continue
@@ -254,7 +254,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 			goto _deleteLine
 
 		case 11: // Ctrl+k, delete from current to end of line.
-			if err = ln.deleteRight(); err != nil {
+			if err = ln.buf.deleteRight(); err != nil {
 				return "", err
 			}
 			continue
@@ -300,39 +300,39 @@ func (ln *Line) Read() (line string, err os.Error) {
 		// the next one.
 		// TODO: it has to be removed before of to be saved the history
 		if !isHistoryUsed {
-			ln.hist.Add(ln.toString())
+			ln.hist.Add(ln.buf.toString())
 		}
 		isHistoryUsed = true
 
-		ln.grow(len(anotherLine))
-		ln.size = len(anotherLine)
-		copy(ln.data[0:], anotherLine)
+		ln.buf.grow(len(anotherLine))
+		ln.buf.size = len(anotherLine)
+		copy(ln.buf.data[0:], anotherLine)
 
-		if err = ln.refresh(); err != nil {
+		if err = ln.buf.refresh(); err != nil {
 			return "", err
 		}
 		continue
 
 	_leftArrow:
-		if err = ln.backward(); err != nil {
+		if err = ln.buf.backward(); err != nil {
 			return "", err
 		}
 		continue
 
 	_rightArrow:
-		if err = ln.forward(); err != nil {
+		if err = ln.buf.forward(); err != nil {
 			return "", err
 		}
 		continue
 
 	_start:
-		if err = ln.start(); err != nil {
+		if err = ln.buf.start(); err != nil {
 			return "", err
 		}
 		continue
 
 	_end:
-		if _, err = ln.end(); err != nil {
+		if _, err = ln.buf.end(); err != nil {
 			return "", err
 		}
 		continue
