@@ -56,8 +56,13 @@ func newBuffer(promptLen int) *buffer {
 // ===
 
 
+// === Output
+// ===
+
 // Inserts a character in the cursor position.
-func (b *buffer) insertRune(rune int) (useRefresh bool, err os.Error) {
+func (b *buffer) insertRune(rune int) os.Error {
+	var useRefresh bool
+
 	b.grow(b.size + 1) // Check if there is free space for one more character
 
 	// Avoid a full update of the line.
@@ -65,8 +70,8 @@ func (b *buffer) insertRune(rune int) (useRefresh bool, err os.Error) {
 		char := make([]byte, utf8.UTFMax)
 		utf8.EncodeRune(rune, char)
 
-		if _, err = output.Write(char); err != nil {
-			return false, OutputError(err.String())
+		if _, err := output.Write(char); err != nil {
+			return OutputError(err.String())
 		}
 	} else {
 		useRefresh = true
@@ -76,19 +81,86 @@ func (b *buffer) insertRune(rune int) (useRefresh bool, err os.Error) {
 	b.data[b.pos] = rune
 	b.pos++
 	b.size++
-	return
+
+	if useRefresh {
+		return b.refresh()
+	}
+	return nil
 }
 
 // Inserts several characters.
-func (b *buffer) insertRunes(runes []int) (useRefresh bool, err os.Error) {
+func (b *buffer) insertRunes(runes []int) os.Error {
 	for _, r := range runes {
-		useRefresh, err = b.insertRune(r)
-		if err != nil {
-			return
+		if err := b.insertRune(r); err != nil {
+			return err
 		}
 	}
-	return
+	return nil
 }
+
+// Returns a slice of the contents of the buffer.
+func (b *buffer) toBytes() []byte {
+	chars := make([]byte, b.size*utf8.UTFMax)
+	var end, runeLen int
+
+	// === Each character (as integer) is encoded to []byte
+	for i := 0; i < b.size; i++ {
+		if i != 0 {
+			runeLen = utf8.EncodeRune(b.data[i], chars[end:])
+			end += runeLen
+		} else {
+			runeLen = utf8.EncodeRune(b.data[i], chars)
+			end = runeLen
+		}
+	}
+	return chars[:end]
+}
+
+// Returns the contents of the buffer as a string.
+func (b *buffer) toString() string { return string(b.data[:b.size]) }
+
+// Refreshes the line.
+func (b *buffer) refresh() (err os.Error) {
+	lastLine, _ := b.pos2xy(b.size)
+	posLine, posColumn := b.pos2xy(b.pos)
+
+	// To the last line.
+	for ln := posLine; ln < lastLine; ln++ {
+		if _, err = output.Write(cursorDown); err != nil {
+			return OutputError(err.String())
+		}
+	}
+
+	// Delete all lines until the cursor position.
+	for ln := lastLine; ln > posLine; ln-- {
+		if _, err = output.Write(delLine_cursorUp); err != nil {
+			return OutputError(err.String())
+		}
+	}
+
+	if _, err = output.Write(delLine_CR); err != nil {
+		return OutputError(err.String())
+	}
+	if _, err = output.Write(b.toBytes()); err != nil {
+		return OutputError(err.String())
+	}
+
+	// === Move cursor to original position.
+	for ln := 0; ln == posLine; ln++ {
+		if _, err = output.Write(cursorDown); err != nil {
+			return OutputError(err.String())
+		}
+	}
+	if _, err = fmt.Fprintf(output, "\r\033[%dC", posColumn); err != nil {
+		return OutputError(err.String())
+	}
+
+	return nil
+}
+
+
+// === Movement
+// ===
 
 // Moves the cursor at the start.
 func (b *buffer) start() (err os.Error) {
@@ -178,8 +250,34 @@ func (b *buffer) forward() (err os.Error) {
 	return
 }
 
+// Swaps the actual character by the previous one. If it is the end of the line
+// then it is swapped the 2nd previous by the previous one.
+func (b *buffer) swap() os.Error {
+	if b.pos == b.promptLen {
+		return nil
+	}
+
+	if b.pos < b.size {
+		aux := b.data[b.pos-1]
+		b.data[b.pos-1] = b.data[b.pos]
+		b.data[b.pos] = aux
+		b.pos++
+		// End of line
+	} else {
+		aux := b.data[b.pos-2]
+		b.data[b.pos-2] = b.data[b.pos-1]
+		b.data[b.pos-1] = aux
+	}
+
+	return b.refresh()
+}
+
+
+// === Deleting
+// ===
+
 // Deletes the character in cursor.
-func (b *buffer) delete() (useRefresh bool, err os.Error) {
+func (b *buffer) delete() (err os.Error) {
 	if b.pos == b.size {
 		return
 	}
@@ -188,15 +286,15 @@ func (b *buffer) delete() (useRefresh bool, err os.Error) {
 	b.size--
 	//	ln, _ := b.pos2xy(b.pos)
 
-	if _, err = output.Write(delChar); err != nil {
-		return false, OutputError(err.String())
+	if _, err := output.Write(delChar); err != nil {
+		return OutputError(err.String())
 	}
 
 	return
 }
 
 // Deletes the previous character from cursor.
-func (b *buffer) deletePrev() (useRefresh bool, err os.Error) {
+func (b *buffer) deletePrev() (err os.Error) {
 	if b.pos == b.promptLen {
 		return
 	}
@@ -207,23 +305,23 @@ func (b *buffer) deletePrev() (useRefresh bool, err os.Error) {
 
 	if col != 0 {
 		if _, err = output.Write(delBackspace); err != nil {
-			return false, OutputError(err.String())
+			return OutputError(err.String())
 		}
 	} else {
 		if _, err = output.Write(cursorUp); err != nil {
-			return false, OutputError(err.String())
+			return OutputError(err.String())
 		}
 		if _, err = fmt.Fprintf(output, "\033[%dC", columns); err != nil {
-			return false, OutputError(err.String())
+			return OutputError(err.String())
 		}
 	}
 
 	b.size--
 	lastLine, _ := b.pos2xy(b.size)
-	if ln != lastLine {
-		return true, nil
-	}
 
+	if ln != lastLine {
+		return b.refresh()
+	}
 	return
 }
 
@@ -256,28 +354,6 @@ func (b *buffer) deleteRight() (err os.Error) {
 
 	b.size = b.pos
 	return nil
-}
-
-// Swaps the actual character by the previous one. If it is the end of the line
-// then it is swapped the 2nd previous by the previous one.
-func (b *buffer) swap() bool {
-	if b.pos == b.promptLen {
-		return false
-	}
-
-	if b.pos < b.size {
-		aux := b.data[b.pos-1]
-		b.data[b.pos-1] = b.data[b.pos]
-		b.data[b.pos] = aux
-		b.pos++
-		// End of line
-	} else {
-		aux := b.data[b.pos-2]
-		b.data[b.pos-2] = b.data[b.pos-1]
-		b.data[b.pos-1] = aux
-	}
-
-	return true
 }
 
 

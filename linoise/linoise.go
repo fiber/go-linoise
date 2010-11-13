@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"utf8"
 
 	"github.com/kless/go-term/term"
 )
@@ -103,27 +102,6 @@ func hasHistory(h *history) bool {
 // === Output
 // ===
 
-// Returns a slice of the contents of the buffer.
-func (ln *Line) toBytes() []byte {
-	chars := make([]byte, ln.size*utf8.UTFMax)
-	var end, runeLen int
-
-	// === Each character (as integer) is encoded to []byte
-	for i := 0; i < ln.size; i++ {
-		if i != 0 {
-			runeLen = utf8.EncodeRune(ln.data[i], chars[end:])
-			end += runeLen
-		} else {
-			runeLen = utf8.EncodeRune(ln.data[i], chars)
-			end = runeLen
-		}
-	}
-	return chars[:end]
-}
-
-// Returns the contents of the buffer as a string.
-func (ln *Line) toString() string { return string(ln.data[:ln.size]) }
-
 // Prints the primary prompt.
 func (ln *Line) prompt() (err os.Error) {
 	if lines, err = ln.end(); err != nil {
@@ -148,42 +126,6 @@ func (ln *Line) prompt() (err os.Error) {
 	return
 }
 
-// Refreshes the line.
-func (ln *Line) refresh() (err os.Error) {
-	lines, err := ln.end()
-	if err != nil {
-		return err
-	}
-
-	lineToRefresh := lines
-	for lineToRefresh > 0 {
-		if _, err = output.Write(delLine_cursorUp); err != nil {
-			return OutputError(err.String())
-		}
-		lineToRefresh--
-	}
-
-	if _, err = output.Write(delLine_CR); err != nil {
-		return OutputError(err.String())
-	}
-	if _, err = output.Write(ln.toBytes()); err != nil {
-		return OutputError(err.String())
-	}
-
-	// === Move cursor to original position.
-	for lineToRefresh < lines {
-		if _, err = output.Write(cursorDown); err != nil {
-			return OutputError(err.String())
-		}
-		lineToRefresh++
-	}
-	if _, err = fmt.Fprintf(output, "\r\033[%dC", ln.pos); err != nil {
-		return OutputError(err.String())
-	}
-
-	return nil
-}
-
 
 // === Get
 // ===
@@ -194,7 +136,6 @@ func (ln *Line) refresh() (err os.Error) {
 func (ln *Line) Read() (line string, err os.Error) {
 	var anotherLine []int  // For lines got from history.
 	var isHistoryUsed bool // If the history has been accessed.
-	var useRefresh bool
 
 	in := bufio.NewReader(input) // Read input.
 	seq := make([]byte, 2)       // For escape sequences.
@@ -208,16 +149,9 @@ func (ln *Line) Read() (line string, err os.Error) {
 
 		switch rune {
 		default:
-			useRefresh, err = ln.insertRune(rune)
-			if err != nil {
+			if err = ln.insertRune(rune); err != nil {
 				return "", err
 			}
-			if useRefresh {
-				if err = ln.refresh(); err != nil {
-					return "", err
-				}
-			}
-
 			continue
 
 		case 13: // enter
@@ -234,33 +168,19 @@ func (ln *Line) Read() (line string, err os.Error) {
 			return strings.TrimSpace(line), nil
 
 		case 127, 8: // backspace, Ctrl-h
-		useRefresh, err = ln.deletePrev()
-		if err != nil {
-			return "", err
-		}
-		if useRefresh {
-			if err = ln.refresh(); err != nil {
+			if err = ln.deletePrev(); err != nil {
 				return "", err
 			}
-		}
-
-		continue
+			continue
 
 		case 9: // horizontal tab
 			// TODO: disabled by now
 			continue
 
 		case 3: // Ctrl-c
-			useRefresh, err := ln.insertRunes(ctrlC)
-			if err != nil {
+			if err = ln.insertRunes(ctrlC); err != nil {
 				return "", err
 			}
-			if useRefresh {
-				if err = ln.refresh(); err != nil {
-					return "", err
-				}
-			}
-
 			if _, err = output.Write(_CR_LF); err != nil {
 				return "", OutputError(err.String())
 			}
@@ -271,16 +191,9 @@ func (ln *Line) Read() (line string, err os.Error) {
 			continue
 
 		case 4: // Ctrl-d
-			useRefresh, err := ln.insertRunes(ctrlD)
-			if err != nil {
+			if err = ln.insertRunes(ctrlD); err != nil {
 				return "", err
 			}
-			if useRefresh {
-				if err = ln.refresh(); err != nil {
-					return "", err
-				}
-			}
-
 			if _, err = output.Write(_CR_LF); err != nil {
 				return "", OutputError(err.String())
 			}
@@ -313,14 +226,8 @@ func (ln *Line) Read() (line string, err os.Error) {
 
 					// TODO: doesn't works
 					if seq[1] == 51 && seq2[0] == 126 { // Delete
-						useRefresh, err = ln.delete()
-						if err != nil {
+						if err = ln.delete(); err != nil {
 							return "", err
-						}
-						if useRefresh {
-							if err = ln.refresh(); err != nil {
-								return "", err
-							}
 						}
 					}
 				}
@@ -338,8 +245,8 @@ func (ln *Line) Read() (line string, err os.Error) {
 			continue
 
 		case 20: // Ctrl-t, swap actual character by the previous one.
-			if ln.swap() {
-				goto _refresh
+			if err = ln.swap(); err != nil {
+				return "", err
 			}
 			continue
 
@@ -400,7 +307,11 @@ func (ln *Line) Read() (line string, err os.Error) {
 		ln.grow(len(anotherLine))
 		ln.size = len(anotherLine)
 		copy(ln.data[0:], anotherLine)
-		goto _refresh
+
+		if err = ln.refresh(); err != nil {
+			return "", err
+		}
+		continue
 
 	_leftArrow:
 		if err = ln.backward(); err != nil {
@@ -431,11 +342,6 @@ func (ln *Line) Read() (line string, err os.Error) {
 			return "", err
 		}
 		continue
-
-	_refresh:
-		if err = ln.refresh(); err != nil {
-			return "", err
-		}
 	}
 	return
 }
