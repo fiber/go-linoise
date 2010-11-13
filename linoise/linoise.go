@@ -36,27 +36,6 @@ var (
 	output *os.File = os.Stdout
 )
 
-// ASCII codes
-const (
-	_ESC       = 27 // Escape: Ctrl-[ (033 in octal)
-	_L_BRACKET = 91 // Left square bracket: [
-)
-
-// Characters
-var (
-	_CR     = []byte{13}     // Carriage return (in hexadecimal: '\x0D')
-	newLine = []byte{13, 10} // CR+LF is used for output
-
-	ctrlC = []int("^C")
-	ctrlD = []int("^D")
-)
-
-// ANSI terminal escape controls
-var (
-	delScreen     = []byte("\033[2J")     // Erase the screen
-	DelRightAndCR = []byte("\033[0K\x0D") // Erase to right; carriage return
-)
-
 
 // === Type
 // ===
@@ -76,27 +55,33 @@ type Line struct {
 func NewLine(hist *history) *Line {
 	term.MakeRaw()
 
+	buf := newBuffer(len(PS1))
+	buf.insertRunes([]int(PS1))
+
 	return &Line{
 		hasHistory(hist),
 		len(PS1),
 		PS1,
 		PS2,
-		newBuffer(),
+		buf,
 		hist,
 	}
 }
 
 // Gets a line type using the given prompt as primary. Sets the TTY raw mode.
-// 'ansiLen' is the length of ANSI codes that the prompt have.
+// 'ansiLen' is the length of ANSI codes that the prompt could have.
 func NewLinePrompt(prompt string, ansiLen int, hist *history) *Line {
 	term.MakeRaw()
+
+	buf := newBuffer(len(prompt) - ansiLen)
+	buf.insertRunes([]int(prompt))
 
 	return &Line{
 		hasHistory(hist),
 		len(prompt) - ansiLen,
 		prompt,
 		PS2,
-		newBuffer(),
+		buf,
 		hist,
 	}
 }
@@ -141,38 +126,58 @@ func (ln *Line) toString() string { return string(ln.data[:ln.size]) }
 
 // Prints the primary prompt.
 func (ln *Line) prompt() (err os.Error) {
-	ln.cursor, ln.size = 0, 0
+	if lines, err = ln.end(); err != nil {
+		return err
+	}
 
+	for lines > 0 {
+		if _, err = output.Write(delLine_cursorUp); err != nil {
+			return OutputError(err.String())
+		}
+		lines--
+	}
+
+	if _, err = output.Write(delLine_CR); err != nil {
+		return OutputError(err.String())
+	}
 	if _, err = fmt.Fprint(output, ln.ps1); err != nil {
 		return OutputError(err.String())
 	}
-	if _, err = output.Write(DelRightAndCR); err != nil {
-		return OutputError(err.String())
-	}
-	// Move cursor after prompt.
-	if _, err = fmt.Fprintf(output, "\033[%dC", ln.ps1Len); err != nil {
-		return OutputError(err.String())
-	}
 
-	return nil
+	ln.pos, ln.size = ln.ps1Len, ln.ps1Len
+	return
 }
 
 // Refreshes the line.
 func (ln *Line) refresh() (err os.Error) {
-	if _, err = output.Write(_CR); err != nil {
-		return OutputError(err.String())
+	lines, err := ln.end()
+	if err != nil {
+		return err
 	}
-	if _, err = fmt.Fprint(output, ln.ps1); err != nil {
+
+	lineToRefresh := lines
+	for lineToRefresh > 0 {
+		if _, err = output.Write(delLine_cursorUp); err != nil {
+			return OutputError(err.String())
+		}
+		lineToRefresh--
+	}
+
+	if _, err = output.Write(delLine_CR); err != nil {
 		return OutputError(err.String())
 	}
 	if _, err = output.Write(ln.toBytes()); err != nil {
 		return OutputError(err.String())
 	}
-	if _, err = output.Write(DelRightAndCR); err != nil {
-		return OutputError(err.String())
+
+	// === Move cursor to original position.
+	for lineToRefresh < lines {
+		if _, err = output.Write(cursorDown); err != nil {
+			return OutputError(err.String())
+		}
+		lineToRefresh++
 	}
-	// Move cursor to original position.
-	if _, err = fmt.Fprintf(output, "\033[%dC", ln.ps1Len+ln.cursor); err != nil {
+	if _, err = fmt.Fprintf(output, "\r\033[%dC", ln.pos); err != nil {
 		return OutputError(err.String())
 	}
 
@@ -189,15 +194,11 @@ func (ln *Line) refresh() (err os.Error) {
 func (ln *Line) Read() (line string, err os.Error) {
 	var anotherLine []int  // For lines got from history.
 	var isHistoryUsed bool // If the history has been accessed.
+	var useRefresh bool
 
 	in := bufio.NewReader(input) // Read input.
 	seq := make([]byte, 2)       // For escape sequences.
 	seq2 := make([]byte, 2)      // Extended escape sequences.
-
-	// Primary prompt.
-	if err = ln.prompt(); err != nil {
-		return "", err
-	}
 
 	for {
 		rune, _, err := in.ReadRune()
@@ -207,7 +208,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 
 		switch rune {
 		default:
-			useRefresh, err := ln.InsertRune(rune)
+			useRefresh, err = ln.insertRune(rune)
 			if err != nil {
 				return "", err
 			}
@@ -226,24 +227,31 @@ func (ln *Line) Read() (line string, err os.Error) {
 				ln.hist.Add(line)
 			}
 
-			if _, err = output.Write(newLine); err != nil {
+			if _, err = output.Write(_CR_LF); err != nil {
 				return "", OutputError(err.String())
 			}
 
 			return strings.TrimSpace(line), nil
 
 		case 127, 8: // backspace, Ctrl-h
-			if ln.DeletePrev() {
-				goto _refresh
+		useRefresh, err = ln.deletePrev()
+		if err != nil {
+			return "", err
+		}
+		if useRefresh {
+			if err = ln.refresh(); err != nil {
+				return "", err
 			}
-			continue
+		}
+
+		continue
 
 		case 9: // horizontal tab
 			// TODO: disabled by now
 			continue
 
 		case 3: // Ctrl-c
-			useRefresh, err := ln.InsertRunes(ctrlC)
+			useRefresh, err := ln.insertRunes(ctrlC)
 			if err != nil {
 				return "", err
 			}
@@ -253,7 +261,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 				}
 			}
 
-			if _, err = output.Write(newLine); err != nil {
+			if _, err = output.Write(_CR_LF); err != nil {
 				return "", OutputError(err.String())
 			}
 			if err = ln.prompt(); err != nil {
@@ -263,7 +271,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 			continue
 
 		case 4: // Ctrl-d
-			useRefresh, err := ln.InsertRunes(ctrlD)
+			useRefresh, err := ln.insertRunes(ctrlD)
 			if err != nil {
 				return "", err
 			}
@@ -273,7 +281,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 				}
 			}
 
-			if _, err = output.Write(newLine); err != nil {
+			if _, err = output.Write(_CR_LF); err != nil {
 				return "", OutputError(err.String())
 			}
 
@@ -305,12 +313,20 @@ func (ln *Line) Read() (line string, err os.Error) {
 
 					// TODO: doesn't works
 					if seq[1] == 51 && seq2[0] == 126 { // Delete
-						if ln.Delete() {
-							goto _refresh
+						useRefresh, err = ln.delete()
+						if err != nil {
+							return "", err
+						}
+						if useRefresh {
+							if err = ln.refresh(); err != nil {
+								return "", err
+							}
 						}
 					}
 				}
+				continue
 			}
+
 			if seq[0] == 79 {
 				switch seq[1] {
 				case 72: // Home
@@ -322,7 +338,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 			continue
 
 		case 20: // Ctrl-t, swap actual character by the previous one.
-			if ln.Swap() {
+			if ln.swap() {
 				goto _refresh
 			}
 			continue
@@ -331,8 +347,10 @@ func (ln *Line) Read() (line string, err os.Error) {
 			goto _deleteLine
 
 		case 11: // Ctrl+k, delete from current to end of line.
-			ln.size = ln.cursor
-			goto _refresh
+			if err = ln.deleteRight(); err != nil {
+				return "", err
+			}
+			continue
 
 		case 1: // Ctrl+a, go to the start of the line.
 			goto _start
@@ -363,7 +381,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 		// Up
 		if seq[1] == 65 {
 			anotherLine, err = ln.hist.Prev()
-		// Down
+			// Down
 		} else {
 			anotherLine, err = ln.hist.Next()
 		}
@@ -381,33 +399,38 @@ func (ln *Line) Read() (line string, err os.Error) {
 
 		ln.grow(len(anotherLine))
 		ln.size = len(anotherLine)
-		ln.cursor = len(anotherLine)
 		copy(ln.data[0:], anotherLine)
 		goto _refresh
 
 	_leftArrow:
-		if ln.Left() {
-			goto _refresh
+		if err = ln.backward(); err != nil {
+			return "", err
 		}
 		continue
 
 	_rightArrow:
-		if ln.Right() {
-			goto _refresh
+		if err = ln.forward(); err != nil {
+			return "", err
 		}
 		continue
 
 	_start:
-		ln.cursor = 0
-		goto _refresh
+		if err = ln.start(); err != nil {
+			return "", err
+		}
+		continue
 
 	_end:
-		ln.cursor = ln.size
-		goto _refresh
+		if _, err = ln.end(); err != nil {
+			return "", err
+		}
+		continue
 
 	_deleteLine:
-		ln.cursor, ln.size = 0, 0
-		//goto _refresh
+		if err = ln.prompt(); err != nil {
+			return "", err
+		}
+		continue
 
 	_refresh:
 		if err = ln.refresh(); err != nil {

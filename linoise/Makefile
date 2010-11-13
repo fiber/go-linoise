@@ -12,6 +12,7 @@ include $(GOROOT)/src/Make.inc
 TARG=github.com/kless/go-linoise/linoise
 GOFILES=\
 	buffer.go\
+	char.go\
 	error.go\
 	history.go\
 	linoise.go\

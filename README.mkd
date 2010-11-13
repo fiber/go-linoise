@@ -2,7 +2,7 @@ go-linoise
 ==========
 
 **go-linoise** is a simple library for line editing, as replacement to GNU
-Readline. It is based in [linenoise][4].
+Readline. It is inspired in [linenoise][4].
 
 Features:
 
