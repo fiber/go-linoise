@@ -117,37 +117,34 @@ func (b *buffer) toBytes() []byte {
 }
 
 // Returns the contents of the buffer as a string.
-func (b *buffer) toString() string { return string(b.data[:b.size]) }
+func (b *buffer) toString() string { return string(b.data[b.promptLen:b.size]) }
 
 // Refreshes the line.
 func (b *buffer) refresh() (err os.Error) {
 	lastLine, _ := b.pos2xy(b.size)
 	posLine, posColumn := b.pos2xy(b.pos)
 
-	// To the last line.
-	for ln := posLine; ln < lastLine; ln++ {
-		if _, err = output.Write(cursorDown); err != nil {
+	// To the first line.
+	for ln := posLine; ln > 0; ln-- {
+		if _, err = output.Write(toPreviousLine); err != nil {
 			return OutputError(err.String())
 		}
 	}
 
-	// Delete all lines until the cursor position.
-	for ln := lastLine; ln > posLine; ln-- {
-		if _, err = output.Write(delLine_cursorUp); err != nil {
-			return OutputError(err.String())
-		}
-	}
-
-	if _, err = output.Write(delLine_CR); err != nil {
+	// === Write the line
+	if _, err = output.Write(_CR); err != nil {
 		return OutputError(err.String())
 	}
 	if _, err = output.Write(b.toBytes()); err != nil {
 		return OutputError(err.String())
 	}
+	if _, err = output.Write(delRight); err != nil {
+		return OutputError(err.String())
+	}
 
 	// === Move cursor to original position.
-	for ln := 0; ln == posLine; ln++ {
-		if _, err = output.Write(cursorDown); err != nil {
+	for ln := lastLine; ln > posLine; ln-- {
+		if _, err = output.Write(toPreviousLine); err != nil {
 			return OutputError(err.String())
 		}
 	}
@@ -284,13 +281,14 @@ func (b *buffer) delete() (err os.Error) {
 
 	copy(b.data[b.pos:], b.data[b.pos+1:b.size])
 	b.size--
-	//	ln, _ := b.pos2xy(b.pos)
 
-	if _, err := output.Write(delChar); err != nil {
-		return OutputError(err.String())
+	if lastLine, _ := b.pos2xy(b.size); lastLine == 0 {
+		if _, err = output.Write(delChar); err != nil {
+			return OutputError(err.String())
+		}
+		return nil
 	}
-
-	return
+	return b.refresh()
 }
 
 // Deletes the previous character from cursor.
@@ -301,28 +299,15 @@ func (b *buffer) deletePrev() (err os.Error) {
 
 	copy(b.data[b.pos-1:], b.data[b.pos:b.size])
 	b.pos--
-	ln, col := b.pos2xy(b.pos)
+	b.size--
 
-	if col != 0 {
+	if lastLine, _ := b.pos2xy(b.size); lastLine == 0 {
 		if _, err = output.Write(delBackspace); err != nil {
 			return OutputError(err.String())
 		}
-	} else {
-		if _, err = output.Write(cursorUp); err != nil {
-			return OutputError(err.String())
-		}
-		if _, err = fmt.Fprintf(output, "\033[%dC", columns); err != nil {
-			return OutputError(err.String())
-		}
+		return nil
 	}
-
-	b.size--
-	lastLine, _ := b.pos2xy(b.size)
-
-	if ln != lastLine {
-		return b.refresh()
-	}
-	return
+	return b.refresh()
 }
 
 // Deletes from current position until to end of line.
@@ -373,9 +358,8 @@ func (b *buffer) pos2xy(pos int) (line, column int) {
 		return 0, pos
 	}
 
-	// pos--
 	line = pos / columns
-	column = pos - (line * columns)
+	column = pos - (line * columns) //- 1
 	return
 }
 

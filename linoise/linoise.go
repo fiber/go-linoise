@@ -104,17 +104,6 @@ func hasHistory(h *history) bool {
 
 // Prints the primary prompt.
 func (ln *Line) prompt() (err os.Error) {
-	if lines, err = ln.buf.end(); err != nil {
-		return err
-	}
-
-	for lines > 0 {
-		if _, err = output.Write(delLine_cursorUp); err != nil {
-			return OutputError(err.String())
-		}
-		lines--
-	}
-
 	if _, err = output.Write(delLine_CR); err != nil {
 		return OutputError(err.String())
 	}
@@ -141,6 +130,11 @@ func (ln *Line) Read() (line string, err os.Error) {
 	seq := make([]byte, 2)       // For escape sequences.
 	seq2 := make([]byte, 2)      // Extended escape sequences.
 
+	// Print the primary prompt.
+	if err = ln.prompt(); err != nil {
+		return "", err
+	}
+
 	for {
 		rune, _, err := in.ReadRune()
 		if err != nil {
@@ -160,7 +154,6 @@ func (ln *Line) Read() (line string, err os.Error) {
 			if ln.useHistory {
 				ln.hist.Add(line)
 			}
-
 			if _, err = output.Write(_CR_LF); err != nil {
 				return "", OutputError(err.String())
 			}
@@ -251,7 +244,20 @@ func (ln *Line) Read() (line string, err os.Error) {
 			continue
 
 		case 21: // Ctrl+u, delete the whole line.
-			goto _deleteLine
+			if lines, err = ln.buf.end(); err != nil {
+				return "", err
+			}
+			for lines > 0 {
+				if _, err = output.Write(delLine_cursorUp); err != nil {
+					return "", OutputError(err.String())
+				}
+				lines--
+			}
+
+			if err = ln.prompt(); err != nil {
+				return "", err
+			}
+			continue
 
 		case 11: // Ctrl+k, delete from current to end of line.
 			if err = ln.buf.deleteRight(); err != nil {
@@ -333,12 +339,6 @@ func (ln *Line) Read() (line string, err os.Error) {
 
 	_end:
 		if _, err = ln.buf.end(); err != nil {
-			return "", err
-		}
-		continue
-
-	_deleteLine:
-		if err = ln.prompt(); err != nil {
 			return "", err
 		}
 		continue
