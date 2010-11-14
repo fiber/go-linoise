@@ -30,6 +30,7 @@ var (
 	//delScreen = []byte("\033[2J") // Erase the screen
 
 	delRight         = []byte("\033[0K")       // Erase to right
+	delLine_CR       = []byte("\033[2K\r")     // Erase line; carriage return
 	delLine_cursorUp = []byte("\033[2K\033[A") // Erase line; cursor up
 
 	//delChar      = []byte("\033[1X") // Erase character

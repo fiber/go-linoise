@@ -312,7 +312,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 
 		ln.buf.grow(len(anotherLine))
 		ln.buf.size = len(anotherLine)
-		copy(ln.buf.data[0:], anotherLine)
+		copy(ln.buf.data[ln.ps1Len:], anotherLine)
 
 		if err = ln.buf.refresh(); err != nil {
 			return "", err
