@@ -128,7 +128,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 
 	in := bufio.NewReader(input) // Read input.
 	seq := make([]byte, 2)       // For escape sequences.
-	seq2 := make([]byte, 2)      // Extended escape sequences.
+	seq2 := make([]byte, 1)      // Extended escape sequences.
 
 	// Print the primary prompt.
 	if err = ln.prompt(); err != nil {
@@ -206,19 +206,27 @@ func (ln *Line) Read() (line string, err os.Error) {
 			return "", ErrCtrlD
 
 		// Escape sequence
-		case _ESC:
+		case 27: // Escape: Ctrl-[ ("033" in octal, "\x1b" in hexadecimal)
 			if _, err = in.Read(seq); err != nil {
 				return "", InputError(err.String())
 			}
-			//fmt.Print(" >", seq) //!!! For DEBUG
 
-			if seq[0] == _L_BRACKET {
+			if seq[0] == 79 { // 'O'
 				switch seq[1] {
-				case 68:
+				case 72: // Home: "\x1bOH"
+					goto _start
+				case 70: // End: "\x1bOF"
+					goto _end
+				}
+			}
+
+			if seq[0] == 91 { // Left square bracket: "["
+				switch seq[1] {
+				case 68: // "\x1b[D"
 					goto _leftArrow
-				case 67:
+				case 67: // "\x1b[C"
 					goto _rightArrow
-				case 65, 66: // Up, Down
+				case 65, 66: // Up: "\x1b[A"; Down: "\x1b[B"
 					goto _upDownArrow
 				}
 
@@ -227,24 +235,21 @@ func (ln *Line) Read() (line string, err os.Error) {
 					if _, err = in.Read(seq2); err != nil {
 						return "", InputError(err.String())
 					}
-					//fmt.Print(" >>", seq2) //!!! For DEBUG
 
-					// TODO: doesn't works
-					if seq[1] == 51 && seq2[0] == 126 { // Delete
-						if err = ln.buf.delete(); err != nil {
-							return "", err
+					if seq2[0] == 126 { // '~'
+						switch seq[1] {
+						//case 50: // Insert: "\x1b[2~"
+							
+						case 51: // Delete: "\x1b[3~"
+							if err = ln.buf.delete(); err != nil {
+								return "", err
+							}
+						//case 53: // RePag: "\x1b[5~"
+							
+						//case 54: // AvPag: "\x1b[6~"
+							
 						}
 					}
-				}
-				continue
-			}
-
-			if seq[0] == 79 {
-				switch seq[1] {
-				case 72: // Home
-					goto _start
-				case 70: // End
-					goto _end
 				}
 			}
 			continue

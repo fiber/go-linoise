@@ -9,12 +9,6 @@ var (
 	ctrlD  = []int("^D")
 )
 
-// ASCII codes
-const (
-	_ESC       = 27 // Escape: Ctrl-[ (033 in octal)
-	_L_BRACKET = 91 // Left square bracket: [
-)
-
 // ANSI terminal escape controls
 var (
 	// === Cursor control
