@@ -36,6 +36,16 @@ var (
 )
 
 
+// === Init
+// ===
+
+func init() {
+	if err := term.CheckIsatty(input.Fd()); err != nil {
+		panic(err)
+	}
+}
+
+
 // === Type
 // ===
 
