@@ -28,11 +28,11 @@ var (
 // === Init
 // ===
 
-var lines, columns int
+/*var lines, columns int
 
 func init() {
 	lines, columns = term.GetWinsizeInChar()
-}
+}*/
 
 
 // === Type
@@ -40,14 +40,16 @@ func init() {
 
 // Represents the line buffer.
 type buffer struct {
-	promptLen int
-	pos       int   // Pointer position into buffer
-	size      int   // Amount of characters added
-	data      []int // Text buffer
+	winColumns int // Number of columns for actual window.
+	promptLen  int
+	pos        int   // Pointer position into buffer
+	size       int   // Amount of characters added
+	data       []int // Text buffer
 }
 
 func newBuffer(promptLen int) *buffer {
 	b := new(buffer)
+	_, b.winColumns = term.GetWinsizeInChar()
 	b.promptLen = promptLen
 	b.data = make([]int, BufferLen, BufferCap)
 
@@ -218,7 +220,7 @@ func (b *buffer) backward() (err os.Error) {
 		if _, err = output.Write(cursorUp); err != nil {
 			return OutputError(err.String())
 		}
-		if _, err = fmt.Fprintf(output, "\033[%dC", columns); err != nil {
+		if _, err = fmt.Fprintf(output, "\033[%dC", b.winColumns); err != nil {
 			return OutputError(err.String())
 		}
 	}
@@ -341,6 +343,23 @@ func (b *buffer) deleteRight() (err os.Error) {
 	return nil
 }
 
+// Deletes full line.
+func (b *buffer) deleteLine() os.Error {
+	lines, err := b.end()
+	if err != nil {
+		return err
+	}
+
+	for lines > 0 {
+		if _, err = output.Write(delLine_cursorUp); err != nil {
+			return OutputError(err.String())
+		}
+		lines--
+	}
+
+	return nil
+}
+
 
 // === Utility
 // ===
@@ -354,12 +373,12 @@ func (b *buffer) grow(n int) {
 
 // Returns the coordinates of a position for a line of size given in `columns`.
 func (b *buffer) pos2xy(pos int) (line, column int) {
-	if pos < columns {
+	if pos < b.winColumns {
 		return 0, pos
 	}
 
-	line = pos / columns
-	column = pos - (line * columns) //- 1
+	line = pos / b.winColumns
+	column = pos - (line * b.winColumns) //- 1
 	return
 }
 

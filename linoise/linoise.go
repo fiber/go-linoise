@@ -130,6 +130,18 @@ func (ln *Line) Read() (line string, err os.Error) {
 	seq := make([]byte, 2)       // For escape sequences.
 	seq2 := make([]byte, 2)      // Extended escape sequences.
 
+	// === Detect change of window size.
+	go term.TrapWinsize()
+
+	go func() {
+		for {
+			<-term.WinsizeChan // Wait for.
+
+			_, ln.buf.winColumns = term.GetWinsizeInChar()
+			ln.buf.refresh()
+		}
+	}()
+
 	// Print the primary prompt.
 	if err = ln.prompt(); err != nil {
 		return "", err
@@ -244,16 +256,9 @@ func (ln *Line) Read() (line string, err os.Error) {
 			continue
 
 		case 21: // Ctrl+u, delete the whole line.
-			if lines, err = ln.buf.end(); err != nil {
+			if err = ln.buf.deleteLine(); err != nil {
 				return "", err
 			}
-			for lines > 0 {
-				if _, err = output.Write(delLine_cursorUp); err != nil {
-					return "", OutputError(err.String())
-				}
-				lines--
-			}
-
 			if err = ln.prompt(); err != nil {
 				return "", err
 			}
