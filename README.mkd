@@ -9,6 +9,7 @@ Features:
 + Licensed under BSD, a liberal license
 + Unicode support
 + History
++ Multi-line editing
 + Facilitate reading related to questions where the answers by default are set
  to bold
 

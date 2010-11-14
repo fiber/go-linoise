@@ -3,8 +3,8 @@ package linoise
 
 // Characters
 var (
-	_CR    = []byte{13}     // Carriage return (in hexadecimal: '\x0D')
-	_CR_LF = []byte{13, 10} // CR+LF is used for a new line in raw mode - (\r\n)
+	_CR    = []byte{13}     // Carriage return -- \r
+	_CR_LF = []byte{13, 10} // CR+LF is used for a new line in raw mode -- \r\n
 	ctrlC  = []int("^C")
 	ctrlD  = []int("^D")
 )
@@ -23,7 +23,7 @@ var (
 	cursorForward  = []byte("\033[C") // Forward
 	cursorBackward = []byte("\033[D") // Backward
 
-	toNextLine = []byte("\033[E") // To next line
+	toNextLine     = []byte("\033[E") // To next line
 	toPreviousLine = []byte("\033[F") // To previous line
 
 	// === Erasing Text
@@ -34,7 +34,7 @@ var (
 	delLine_cursorUp = []byte("\033[2K\033[A") // Erase line; cursor up
 
 	//delChar      = []byte("\033[1X") // Erase character
-	delChar      = []byte("\033[P")  // Delete character, from current position
+	delChar      = []byte("\033[P") // Delete character, from current position
 	delBackspace = []byte("\033[D\033[P")
 
 	// === Misc.
