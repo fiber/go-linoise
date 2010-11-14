@@ -130,6 +130,11 @@ func (ln *Line) Read() (line string, err os.Error) {
 	seq := make([]byte, 2)       // For escape sequences.
 	seq2 := make([]byte, 2)      // Extended escape sequences.
 
+	// Print the primary prompt.
+	if err = ln.prompt(); err != nil {
+		return "", err
+	}
+
 	// === Detect change of window size.
 	go term.TrapWinsize()
 
@@ -141,11 +146,6 @@ func (ln *Line) Read() (line string, err os.Error) {
 			ln.buf.refresh()
 		}
 	}()
-
-	// Print the primary prompt.
-	if err = ln.prompt(); err != nil {
-		return "", err
-	}
 
 	for {
 		rune, _, err := in.ReadRune()
