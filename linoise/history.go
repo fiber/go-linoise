@@ -14,6 +14,7 @@ import (
 	"container/list"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -62,7 +63,7 @@ func NewHistory(filename string) (*history, os.Error) {
 // greater than zero.
 func NewHistorySize(filename string, size int) (*history, os.Error) {
 	if size <= 0 {
-		return nil, HistSizeError(size)
+		return nil, os.NewError("wrong history size: " + strconv.Itoa(size))
 	}
 
 	return _baseHistory(filename, size)

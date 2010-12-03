@@ -11,7 +11,6 @@ package linoise
 
 import (
 	"os"
-	"strconv"
 )
 
 
@@ -36,13 +35,5 @@ type OutputError string
 
 func (o OutputError) String() string {
 	return "could not write to output: " + string(o)
-}
-
-
-// The error representing an invalid history size.
-type HistSizeError int
-
-func (h HistSizeError) String() string {
-	return "history: bad size " + strconv.Itoa(int(h))
 }
 
