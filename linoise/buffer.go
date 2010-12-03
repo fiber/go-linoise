@@ -70,7 +70,7 @@ func (b *buffer) insertRune(rune int) os.Error {
 	// Avoid a full update of the line.
 	if b.pos == b.size {
 		char := make([]byte, utf8.UTFMax)
-		utf8.EncodeRune(rune, char)
+		utf8.EncodeRune(char, rune)
 
 		if _, err := output.Write(char); err != nil {
 			return outputError(err.String())
@@ -108,10 +108,10 @@ func (b *buffer) toBytes() []byte {
 	// === Each character (as integer) is encoded to []byte
 	for i := 0; i < b.size; i++ {
 		if i != 0 {
-			runeLen = utf8.EncodeRune(b.data[i], chars[end:])
+			runeLen = utf8.EncodeRune(chars[end:], b.data[i])
 			end += runeLen
 		} else {
-			runeLen = utf8.EncodeRune(b.data[i], chars)
+			runeLen = utf8.EncodeRune(chars, b.data[i])
 			end = runeLen
 		}
 	}
