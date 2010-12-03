@@ -73,7 +73,7 @@ func (b *buffer) insertRune(rune int) os.Error {
 		utf8.EncodeRune(rune, char)
 
 		if _, err := output.Write(char); err != nil {
-			return OutputError(err.String())
+			return outputError(err.String())
 		}
 	} else {
 		useRefresh = true
@@ -129,29 +129,29 @@ func (b *buffer) refresh() (err os.Error) {
 	// To the first line.
 	for ln := posLine; ln > 0; ln-- {
 		if _, err = output.Write(toPreviousLine); err != nil {
-			return OutputError(err.String())
+			return outputError(err.String())
 		}
 	}
 
 	// === Write the line
 	if _, err = output.Write(_CR); err != nil {
-		return OutputError(err.String())
+		return outputError(err.String())
 	}
 	if _, err = output.Write(b.toBytes()); err != nil {
-		return OutputError(err.String())
+		return outputError(err.String())
 	}
 	if _, err = output.Write(delRight); err != nil {
-		return OutputError(err.String())
+		return outputError(err.String())
 	}
 
 	// === Move cursor to original position.
 	for ln := lastLine; ln > posLine; ln-- {
 		if _, err = output.Write(toPreviousLine); err != nil {
-			return OutputError(err.String())
+			return outputError(err.String())
 		}
 	}
 	if _, err = fmt.Fprintf(output, "\r\033[%dC", posColumn); err != nil {
-		return OutputError(err.String())
+		return outputError(err.String())
 	}
 
 	return nil
@@ -169,12 +169,12 @@ func (b *buffer) start() (err os.Error) {
 
 	for ln, _ := b.pos2xy(b.pos); ln > 0; ln-- {
 		if _, err = output.Write(cursorUp); err != nil {
-			return OutputError(err.String())
+			return outputError(err.String())
 		}
 	}
 
 	if _, err = fmt.Fprintf(output, "\r\033[%dC", b.promptLen); err != nil {
-		return OutputError(err.String())
+		return outputError(err.String())
 	}
 
 	b.pos = b.promptLen
@@ -191,12 +191,12 @@ func (b *buffer) end() (lines int, err os.Error) {
 
 	for ln, _ := b.pos2xy(b.pos); ln < lastLine; ln++ {
 		if _, err = output.Write(cursorDown); err != nil {
-			return 0, OutputError(err.String())
+			return 0, outputError(err.String())
 		}
 	}
 
 	if _, err = fmt.Fprintf(output, "\r\033[%dC", lastColumn); err != nil {
-		return 0, OutputError(err.String())
+		return 0, outputError(err.String())
 	}
 
 	b.pos = b.size
@@ -214,14 +214,14 @@ func (b *buffer) backward() (err os.Error) {
 	// If position is on the same line.
 	if _, col := b.pos2xy(b.pos); col != 0 {
 		if _, err = output.Write(cursorBackward); err != nil {
-			return OutputError(err.String())
+			return outputError(err.String())
 		}
 	} else {
 		if _, err = output.Write(cursorUp); err != nil {
-			return OutputError(err.String())
+			return outputError(err.String())
 		}
 		if _, err = fmt.Fprintf(output, "\033[%dC", b.winColumns); err != nil {
-			return OutputError(err.String())
+			return outputError(err.String())
 		}
 	}
 
@@ -238,11 +238,11 @@ func (b *buffer) forward() (err os.Error) {
 
 	if _, col := b.pos2xy(b.pos); col != 0 {
 		if _, err = output.Write(cursorForward); err != nil {
-			return OutputError(err.String())
+			return outputError(err.String())
 		}
 	} else {
 		if _, err = output.Write(toNextLine); err != nil {
-			return OutputError(err.String())
+			return outputError(err.String())
 		}
 	}
 
@@ -286,7 +286,7 @@ func (b *buffer) delete() (err os.Error) {
 
 	if lastLine, _ := b.pos2xy(b.size); lastLine == 0 {
 		if _, err = output.Write(delChar); err != nil {
-			return OutputError(err.String())
+			return outputError(err.String())
 		}
 		return nil
 	}
@@ -305,7 +305,7 @@ func (b *buffer) deletePrev() (err os.Error) {
 
 	if lastLine, _ := b.pos2xy(b.size); lastLine == 0 {
 		if _, err = output.Write(delBackspace); err != nil {
-			return OutputError(err.String())
+			return outputError(err.String())
 		}
 		return nil
 	}
@@ -324,19 +324,19 @@ func (b *buffer) deleteRight() (err os.Error) {
 	// To the last line.
 	for ln := posLine; ln < lastLine; ln++ {
 		if _, err = output.Write(cursorDown); err != nil {
-			return OutputError(err.String())
+			return outputError(err.String())
 		}
 	}
 
 	// Delete all lines until the cursor position.
 	for ln := lastLine; ln > posLine; ln-- {
 		if _, err = output.Write(delLine_cursorUp); err != nil {
-			return OutputError(err.String())
+			return outputError(err.String())
 		}
 	}
 
 	if _, err = output.Write(delRight); err != nil {
-		return OutputError(err.String())
+		return outputError(err.String())
 	}
 
 	b.size = b.pos
@@ -352,7 +352,7 @@ func (b *buffer) deleteLine() os.Error {
 
 	for lines > 0 {
 		if _, err = output.Write(delLine_cursorUp); err != nil {
-			return OutputError(err.String())
+			return outputError(err.String())
 		}
 		lines--
 	}

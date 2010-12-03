@@ -23,17 +23,17 @@ var (
 
 
 // Represents a failure on input.
-type InputError string
+type inputError string
 
-func (i InputError) String() string {
+func (i inputError) String() string {
 	return "could not read from input: " + string(i)
 }
 
 
 // Represents a failure in output.
-type OutputError string
+type outputError string
 
-func (o OutputError) String() string {
+func (o outputError) String() string {
 	return "could not write to output: " + string(o)
 }
 

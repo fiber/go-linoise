@@ -115,10 +115,10 @@ func hasHistory(h *history) bool {
 // Prints the primary prompt.
 func (ln *Line) prompt() (err os.Error) {
 	if _, err = output.Write(delLine_CR); err != nil {
-		return OutputError(err.String())
+		return outputError(err.String())
 	}
 	if _, err = fmt.Fprint(output, ln.ps1); err != nil {
-		return OutputError(err.String())
+		return outputError(err.String())
 	}
 
 	ln.buf.pos, ln.buf.size = ln.ps1Len, ln.ps1Len
@@ -160,7 +160,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 	for {
 		rune, _, err := in.ReadRune()
 		if err != nil {
-			return "", InputError(err.String())
+			return "", inputError(err.String())
 		}
 
 		switch rune {
@@ -177,7 +177,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 				ln.hist.Add(line)
 			}
 			if _, err = output.Write(_CR_LF); err != nil {
-				return "", OutputError(err.String())
+				return "", outputError(err.String())
 			}
 
 			return strings.TrimSpace(line), nil
@@ -197,7 +197,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 				return "", err
 			}
 			if _, err = output.Write(_CR_LF); err != nil {
-				return "", OutputError(err.String())
+				return "", outputError(err.String())
 			}
 			if err = ln.prompt(); err != nil {
 				return "", err
@@ -210,7 +210,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 				return "", err
 			}
 			if _, err = output.Write(_CR_LF); err != nil {
-				return "", OutputError(err.String())
+				return "", outputError(err.String())
 			}
 
 			return "", ErrCtrlD
@@ -218,7 +218,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 		// Escape sequence
 		case 27: // Escape: Ctrl-[ ("033" in octal, "\x1b" in hexadecimal)
 			if _, err = in.Read(seq); err != nil {
-				return "", InputError(err.String())
+				return "", inputError(err.String())
 			}
 
 			if seq[0] == 79 { // 'O'
@@ -243,7 +243,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 				// Extended escape.
 				if seq[1] > 48 && seq[1] < 55 {
 					if _, err = in.Read(seq2); err != nil {
-						return "", InputError(err.String())
+						return "", inputError(err.String())
 					}
 
 					if seq2[0] == 126 { // '~'
