@@ -331,7 +331,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 		isHistoryUsed = true
 
 		ln.buf.grow(len(anotherLine))
-		ln.buf.size = len(anotherLine)
+		ln.buf.size = len(anotherLine) + ln.buf.promptLen
 		copy(ln.buf.data[ln.ps1Len:], anotherLine)
 
 		if err = ln.buf.refresh(); err != nil {
