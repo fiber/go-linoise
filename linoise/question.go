@@ -142,7 +142,7 @@ func (q *Question) _baseReadString(prompt, defaultAnswer string, def hasDefault)
 			if _, err := strconv.Atoi(answer); err == nil {
 				goto _error
 			}
-			if _, err := strconv.Atof(answer); err == nil {
+			if _, err := strconv.Atof64(answer); err == nil {
 				goto _error
 			}
 
@@ -209,10 +209,10 @@ func (q *Question) ReadIntDefault(prompt string, defaultAnswer int) (answer int,
 }
 
 // Base to read float numbers.
-func (q *Question) _baseReadFloat(prompt string, defaultAnswer float, def hasDefault) (answer float, err os.Error) {
+func (q *Question) _baseReadFloat(prompt string, defaultAnswer float64, def hasDefault) (answer float64, err os.Error) {
 	line := q.getLine(
 		prompt,
-		strconv.Ftoa(defaultAnswer, QuestionFloatFmt, QuestionFloatPrec),
+		strconv.Ftoa64(defaultAnswer, QuestionFloatFmt, QuestionFloatPrec),
 		def,
 	)
 
@@ -225,7 +225,7 @@ func (q *Question) _baseReadFloat(prompt string, defaultAnswer float, def hasDef
 			return defaultAnswer, nil
 		}
 
-		answer, err = strconv.Atof(input)
+		answer, err = strconv.Atof64(input)
 		if err != nil {
 			fmt.Fprintf(output, "%s%q: the value has to be a float\r\n",
 				QuestionErrPrefix, input)
@@ -238,13 +238,13 @@ func (q *Question) _baseReadFloat(prompt string, defaultAnswer float, def hasDef
 }
 
 // Prints the prompt waiting to get a float number.
-func (q *Question) ReadFloat(prompt string) (answer float, err os.Error) {
+func (q *Question) ReadFloat(prompt string) (answer float64, err os.Error) {
 	return q._baseReadFloat(prompt, 0.0, _DEFAULT_NO)
 }
 
 // Prints the prompt waiting to get a float number.
 // If input is nil then it returns the answer by default.
-func (q *Question) ReadFloatDefault(prompt string, defaultAnswer float) (answer float, err os.Error) {
+func (q *Question) ReadFloatDefault(prompt string, defaultAnswer float64) (answer float64, err os.Error) {
 	return q._baseReadFloat(prompt, defaultAnswer, _DEFAULT_SIMPLE)
 }
 
