@@ -40,7 +40,7 @@ type history struct {
 
 // Base to create an history file.
 func _baseHistory(fname string, size int) (*history, os.Error) {
-	file, err := os.Open(fname, os.O_CREATE|os.O_RDWR, HistoryPerm)
+	file, err := os.OpenFile(fname, os.O_CREATE|os.O_RDWR, HistoryPerm)
 	if err != nil {
 		return nil, err
 	}
