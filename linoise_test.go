@@ -14,7 +14,15 @@ import (
 	"os"
 	"path"
 	"testing"
+	"syscall"
+	"github.com/kless/term"
 )
+
+func init() {
+	term.Input = os.Stderr
+	term.InputFD = syscall.Stderr
+	Init()
+}
 
 var linoiseFile = path.Join(os.TempDir(), "go_linoise")
 

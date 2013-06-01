@@ -39,10 +39,12 @@ var (
 // === Init
 // ===
 
-func init() {
+// Init sets up our terminal for use.
+// It must be run before anything else.
+func Init() {
 	var err error
 	if tty, err = term.New(); err != nil {
-		log.Fatal(err)
+		log.Fatalf("%q fd: %d", err, term.InputFD)
 	}
 }
 
