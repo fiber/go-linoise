@@ -16,12 +16,10 @@ import (
 	"testing"
 )
 
-
 var (
 	historyFile = path.Join(os.TempDir(), "go_history")
 	historyLen  int
 )
-
 
 func TestHistSave(t *testing.T) {
 	hist, err := NewHistorySize(historyFile, 10)
@@ -72,4 +70,3 @@ func TestHistLoad(t *testing.T) {
 
 	os.Remove(historyFile)
 }
-

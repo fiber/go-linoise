@@ -10,30 +10,26 @@
 package linoise
 
 import (
-	"os"
+	"fmt"
 )
-
 
 var (
-	ErrCtrlD = os.NewError("Interrumpted (Ctrl-d)")
+	ErrCtrlD = fmt.Errorf("Interrumpted (Ctrl-d)")
 
-	ErrEmptyHist  = os.NewError("history: empty")
-	ErrNilElement = os.NewError("history: no more elements")
+	ErrEmptyHist  = fmt.Errorf("history: empty")
+	ErrNilElement = fmt.Errorf("history: no more elements")
 )
-
 
 // Represents a failure on input.
 type inputError string
 
-func (i inputError) String() string {
+func (i inputError) Error() string {
 	return "could not read from input: " + string(i)
 }
-
 
 // Represents a failure in output.
 type outputError string
 
-func (o outputError) String() string {
+func (o outputError) Error() string {
 	return "could not write to output: " + string(o)
 }
-

@@ -16,9 +16,7 @@ import (
 	"testing"
 )
 
-
 var linoiseFile = path.Join(os.TempDir(), "go_linoise")
-
 
 func TestLinoise(t *testing.T) {
 	fmt.Println("Press ^D to exit\n")
@@ -37,7 +35,7 @@ func TestLinoise(t *testing.T) {
 			if err == ErrCtrlD {
 				hist.Save()
 			} else {
-				fmt.Fprintf(os.Stderr, err.String())
+				fmt.Fprintf(os.Stderr, err.Error())
 			}
 
 			break
@@ -46,4 +44,3 @@ func TestLinoise(t *testing.T) {
 
 	//os.Remove(linoiseFile)
 }
-

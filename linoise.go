@@ -19,9 +19,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/kless/go-term/term"
+	"github.com/kless/term"
 )
-
 
 // Values by default for prompts.
 var (
@@ -35,7 +34,6 @@ var (
 	output *os.File = os.Stdout
 )
 
-
 // === Init
 // ===
 
@@ -44,7 +42,6 @@ func init() {
 		panic(err)
 	}
 }
-
 
 // === Type
 // ===
@@ -59,13 +56,12 @@ type Line struct {
 	hist       *history // History file
 }
 
-
 // Gets a line type using the primary prompt by default. Sets the TTY raw mode.
 func NewLine(hist *history) *Line {
 	term.MakeRaw()
 
 	buf := newBuffer(len(PS1))
-	buf.insertRunes([]int(PS1))
+	buf.insertRunes([]rune(PS1))
 
 	return &Line{
 		hasHistory(hist),
@@ -83,7 +79,7 @@ func NewLinePrompt(prompt string, ansiLen int, hist *history) *Line {
 	term.MakeRaw()
 
 	buf := newBuffer(len(prompt) - ansiLen)
-	buf.insertRunes([]int(prompt))
+	buf.insertRunes([]rune(prompt))
 
 	return &Line{
 		hasHistory(hist),
@@ -108,23 +104,21 @@ func hasHistory(h *history) bool {
 	return true
 }
 
-
 // === Output
 // ===
 
 // Prints the primary prompt.
-func (ln *Line) prompt() (err os.Error) {
+func (ln *Line) prompt() (err error) {
 	if _, err = output.Write(delLine_CR); err != nil {
-		return outputError(err.String())
+		return outputError(err.Error())
 	}
 	if _, err = fmt.Fprint(output, ln.ps1); err != nil {
-		return outputError(err.String())
+		return outputError(err.Error())
 	}
 
 	ln.buf.pos, ln.buf.size = ln.ps1Len, ln.ps1Len
 	return
 }
-
 
 // === Get
 // ===
@@ -132,8 +126,8 @@ func (ln *Line) prompt() (err os.Error) {
 // Reads charactes from input to write them to output, allowing line editing.
 // The errors that could return are to indicate if Ctrl-D was pressed, and for
 // both input / output errors.
-func (ln *Line) Read() (line string, err os.Error) {
-	var anotherLine []int  // For lines got from history.
+func (ln *Line) Read() (line string, err error) {
+	var anotherLine []rune // For lines got from history.
 	var isHistoryUsed bool // If the history has been accessed.
 
 	in := bufio.NewReader(input) // Read input.
@@ -160,7 +154,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 	for {
 		rune, _, err := in.ReadRune()
 		if err != nil {
-			return "", inputError(err.String())
+			return "", inputError(err.Error())
 		}
 
 		switch rune {
@@ -177,7 +171,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 				ln.hist.Add(line)
 			}
 			if _, err = output.Write(_CR_LF); err != nil {
-				return "", outputError(err.String())
+				return "", outputError(err.Error())
 			}
 
 			return strings.TrimSpace(line), nil
@@ -197,7 +191,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 				return "", err
 			}
 			if _, err = output.Write(_CR_LF); err != nil {
-				return "", outputError(err.String())
+				return "", outputError(err.Error())
 			}
 			if err = ln.prompt(); err != nil {
 				return "", err
@@ -210,7 +204,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 				return "", err
 			}
 			if _, err = output.Write(_CR_LF); err != nil {
-				return "", outputError(err.String())
+				return "", outputError(err.Error())
 			}
 
 			return "", ErrCtrlD
@@ -218,7 +212,7 @@ func (ln *Line) Read() (line string, err os.Error) {
 		// Escape sequence
 		case 27: // Escape: Ctrl-[ ("033" in octal, "\x1b" in hexadecimal)
 			if _, err = in.Read(seq); err != nil {
-				return "", inputError(err.String())
+				return "", inputError(err.Error())
 			}
 
 			if seq[0] == 79 { // 'O'
@@ -243,21 +237,21 @@ func (ln *Line) Read() (line string, err os.Error) {
 				// Extended escape.
 				if seq[1] > 48 && seq[1] < 55 {
 					if _, err = in.Read(seq2); err != nil {
-						return "", inputError(err.String())
+						return "", inputError(err.Error())
 					}
 
 					if seq2[0] == 126 { // '~'
 						switch seq[1] {
 						//case 50: // Insert: "\x1b[2~"
-							
+
 						case 51: // Delete: "\x1b[3~"
 							if err = ln.buf.delete(); err != nil {
 								return "", err
 							}
-						//case 53: // RePag: "\x1b[5~"
-							
-						//case 54: // AvPag: "\x1b[6~"
-							
+							//case 53: // RePag: "\x1b[5~"
+
+							//case 54: // AvPag: "\x1b[6~"
+
 						}
 					}
 				}
@@ -365,4 +359,3 @@ func (ln *Line) Read() (line string, err os.Error) {
 	}
 	return
 }
-

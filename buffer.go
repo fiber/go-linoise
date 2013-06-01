@@ -11,19 +11,16 @@ package linoise
 
 import (
 	"fmt"
-	"os"
-	"utf8"
+	"unicode/utf8"
 
-	"github.com/kless/go-term/term"
+	"github.com/kless/term"
 )
-
 
 // Buffer size
 var (
 	BufferCap = 4096
 	BufferLen = 64 // Initial length
 )
-
 
 // === Init
 // ===
@@ -34,7 +31,6 @@ func init() {
 	lines, columns = term.GetWinsizeInChar()
 }*/
 
-
 // === Type
 // ===
 
@@ -42,27 +38,27 @@ func init() {
 type buffer struct {
 	winColumns int // Number of columns for actual window.
 	promptLen  int
-	pos        int   // Pointer position into buffer
-	size       int   // Amount of characters added
-	data       []int // Text buffer
+	pos        int    // Pointer position into buffer
+	size       int    // Amount of characters added
+	data       []rune // Text buffer
 }
 
 func newBuffer(promptLen int) *buffer {
 	b := new(buffer)
 	_, b.winColumns = term.GetWinsizeInChar()
 	b.promptLen = promptLen
-	b.data = make([]int, BufferLen, BufferCap)
+	b.data = make([]rune, BufferLen, BufferCap)
 
 	return b
 }
-// ===
 
+// ===
 
 // === Output
 // ===
 
 // Inserts a character in the cursor position.
-func (b *buffer) insertRune(rune int) os.Error {
+func (b *buffer) insertRune(r rune) error {
 	var useRefresh bool
 
 	b.grow(b.size + 1) // Check if there is free space for one more character
@@ -70,17 +66,17 @@ func (b *buffer) insertRune(rune int) os.Error {
 	// Avoid a full update of the line.
 	if b.pos == b.size {
 		char := make([]byte, utf8.UTFMax)
-		utf8.EncodeRune(char, rune)
+		utf8.EncodeRune(char, r)
 
 		if _, err := output.Write(char); err != nil {
-			return outputError(err.String())
+			return outputError(err.Error())
 		}
 	} else {
 		useRefresh = true
 		copy(b.data[b.pos+1:b.size+1], b.data[b.pos:b.size])
 	}
 
-	b.data[b.pos] = rune
+	b.data[b.pos] = r
 	b.pos++
 	b.size++
 
@@ -91,7 +87,7 @@ func (b *buffer) insertRune(rune int) os.Error {
 }
 
 // Inserts several characters.
-func (b *buffer) insertRunes(runes []int) os.Error {
+func (b *buffer) insertRunes(runes []rune) error {
 	for _, r := range runes {
 		if err := b.insertRune(r); err != nil {
 			return err
@@ -122,59 +118,58 @@ func (b *buffer) toBytes() []byte {
 func (b *buffer) toString() string { return string(b.data[b.promptLen:b.size]) }
 
 // Refreshes the line.
-func (b *buffer) refresh() (err os.Error) {
+func (b *buffer) refresh() (err error) {
 	lastLine, _ := b.pos2xy(b.size)
 	posLine, posColumn := b.pos2xy(b.pos)
 
 	// To the first line.
 	for ln := posLine; ln > 0; ln-- {
 		if _, err = output.Write(toPreviousLine); err != nil {
-			return outputError(err.String())
+			return outputError(err.Error())
 		}
 	}
 
 	// === Write the line
 	if _, err = output.Write(_CR); err != nil {
-		return outputError(err.String())
+		return outputError(err.Error())
 	}
 	if _, err = output.Write(b.toBytes()); err != nil {
-		return outputError(err.String())
+		return outputError(err.Error())
 	}
 	if _, err = output.Write(delRight); err != nil {
-		return outputError(err.String())
+		return outputError(err.Error())
 	}
 
 	// === Move cursor to original position.
 	for ln := lastLine; ln > posLine; ln-- {
 		if _, err = output.Write(toPreviousLine); err != nil {
-			return outputError(err.String())
+			return outputError(err.Error())
 		}
 	}
 	if _, err = fmt.Fprintf(output, "\r\033[%dC", posColumn); err != nil {
-		return outputError(err.String())
+		return outputError(err.Error())
 	}
 
 	return nil
 }
 
-
 // === Movement
 // ===
 
 // Moves the cursor at the start.
-func (b *buffer) start() (err os.Error) {
+func (b *buffer) start() (err error) {
 	if b.pos == b.promptLen {
 		return
 	}
 
 	for ln, _ := b.pos2xy(b.pos); ln > 0; ln-- {
 		if _, err = output.Write(cursorUp); err != nil {
-			return outputError(err.String())
+			return outputError(err.Error())
 		}
 	}
 
 	if _, err = fmt.Fprintf(output, "\r\033[%dC", b.promptLen); err != nil {
-		return outputError(err.String())
+		return outputError(err.Error())
 	}
 
 	b.pos = b.promptLen
@@ -182,7 +177,7 @@ func (b *buffer) start() (err os.Error) {
 }
 
 // Moves the cursor at the end. Returns the number of lines that fill in the data.
-func (b *buffer) end() (lines int, err os.Error) {
+func (b *buffer) end() (lines int, err error) {
 	if b.pos == b.size {
 		return
 	}
@@ -191,12 +186,12 @@ func (b *buffer) end() (lines int, err os.Error) {
 
 	for ln, _ := b.pos2xy(b.pos); ln < lastLine; ln++ {
 		if _, err = output.Write(cursorDown); err != nil {
-			return 0, outputError(err.String())
+			return 0, outputError(err.Error())
 		}
 	}
 
 	if _, err = fmt.Fprintf(output, "\r\033[%dC", lastColumn); err != nil {
-		return 0, outputError(err.String())
+		return 0, outputError(err.Error())
 	}
 
 	b.pos = b.size
@@ -204,7 +199,7 @@ func (b *buffer) end() (lines int, err os.Error) {
 }
 
 // Moves the cursor one character backward.
-func (b *buffer) backward() (err os.Error) {
+func (b *buffer) backward() (err error) {
 	if b.pos == b.promptLen {
 		return
 	}
@@ -214,14 +209,14 @@ func (b *buffer) backward() (err os.Error) {
 	// If position is on the same line.
 	if _, col := b.pos2xy(b.pos); col != 0 {
 		if _, err = output.Write(cursorBackward); err != nil {
-			return outputError(err.String())
+			return outputError(err.Error())
 		}
 	} else {
 		if _, err = output.Write(cursorUp); err != nil {
-			return outputError(err.String())
+			return outputError(err.Error())
 		}
 		if _, err = fmt.Fprintf(output, "\033[%dC", b.winColumns); err != nil {
-			return outputError(err.String())
+			return outputError(err.Error())
 		}
 	}
 
@@ -229,7 +224,7 @@ func (b *buffer) backward() (err os.Error) {
 }
 
 // Moves the cursor one character forward.
-func (b *buffer) forward() (err os.Error) {
+func (b *buffer) forward() (err error) {
 	if b.pos == b.size {
 		return
 	}
@@ -238,11 +233,11 @@ func (b *buffer) forward() (err os.Error) {
 
 	if _, col := b.pos2xy(b.pos); col != 0 {
 		if _, err = output.Write(cursorForward); err != nil {
-			return outputError(err.String())
+			return outputError(err.Error())
 		}
 	} else {
 		if _, err = output.Write(toNextLine); err != nil {
-			return outputError(err.String())
+			return outputError(err.Error())
 		}
 	}
 
@@ -251,7 +246,7 @@ func (b *buffer) forward() (err os.Error) {
 
 // Swaps the actual character by the previous one. If it is the end of the line
 // then it is swapped the 2nd previous by the previous one.
-func (b *buffer) swap() os.Error {
+func (b *buffer) swap() error {
 	if b.pos == b.promptLen {
 		return nil
 	}
@@ -271,12 +266,11 @@ func (b *buffer) swap() os.Error {
 	return b.refresh()
 }
 
-
 // === Deleting
 // ===
 
 // Deletes the character in cursor.
-func (b *buffer) delete() (err os.Error) {
+func (b *buffer) delete() (err error) {
 	if b.pos == b.size {
 		return
 	}
@@ -286,7 +280,7 @@ func (b *buffer) delete() (err os.Error) {
 
 	if lastLine, _ := b.pos2xy(b.size); lastLine == 0 {
 		if _, err = output.Write(delChar); err != nil {
-			return outputError(err.String())
+			return outputError(err.Error())
 		}
 		return nil
 	}
@@ -294,7 +288,7 @@ func (b *buffer) delete() (err os.Error) {
 }
 
 // Deletes the previous character from cursor.
-func (b *buffer) deletePrev() (err os.Error) {
+func (b *buffer) deletePrev() (err error) {
 	if b.pos == b.promptLen {
 		return
 	}
@@ -305,7 +299,7 @@ func (b *buffer) deletePrev() (err os.Error) {
 
 	if lastLine, _ := b.pos2xy(b.size); lastLine == 0 {
 		if _, err = output.Write(delBackspace); err != nil {
-			return outputError(err.String())
+			return outputError(err.Error())
 		}
 		return nil
 	}
@@ -313,7 +307,7 @@ func (b *buffer) deletePrev() (err os.Error) {
 }
 
 // Deletes from current position until to end of line.
-func (b *buffer) deleteRight() (err os.Error) {
+func (b *buffer) deleteRight() (err error) {
 	if b.pos == b.size {
 		return
 	}
@@ -324,19 +318,19 @@ func (b *buffer) deleteRight() (err os.Error) {
 	// To the last line.
 	for ln := posLine; ln < lastLine; ln++ {
 		if _, err = output.Write(cursorDown); err != nil {
-			return outputError(err.String())
+			return outputError(err.Error())
 		}
 	}
 
 	// Delete all lines until the cursor position.
 	for ln := lastLine; ln > posLine; ln-- {
 		if _, err = output.Write(delLine_cursorUp); err != nil {
-			return outputError(err.String())
+			return outputError(err.Error())
 		}
 	}
 
 	if _, err = output.Write(delRight); err != nil {
-		return outputError(err.String())
+		return outputError(err.Error())
 	}
 
 	b.size = b.pos
@@ -344,7 +338,7 @@ func (b *buffer) deleteRight() (err os.Error) {
 }
 
 // Deletes full line.
-func (b *buffer) deleteLine() os.Error {
+func (b *buffer) deleteLine() error {
 	lines, err := b.end()
 	if err != nil {
 		return err
@@ -352,14 +346,13 @@ func (b *buffer) deleteLine() os.Error {
 
 	for lines > 0 {
 		if _, err = output.Write(delLine_cursorUp); err != nil {
-			return outputError(err.String())
+			return outputError(err.Error())
 		}
 		lines--
 	}
 
 	return nil
 }
-
 
 // === Utility
 // ===
@@ -381,4 +374,3 @@ func (b *buffer) pos2xy(pos int) (line, column int) {
 	column = pos - (line * b.winColumns) //- 1
 	return
 }
-
