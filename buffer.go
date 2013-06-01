@@ -12,8 +12,6 @@ package linoise
 import (
 	"fmt"
 	"unicode/utf8"
-
-	"github.com/kless/term"
 )
 
 // Buffer size
@@ -28,7 +26,6 @@ var (
 /*var lines, columns int
 
 func init() {
-	lines, columns = term.GetWinsizeInChar()
 }*/
 
 // === Type
@@ -45,7 +42,8 @@ type buffer struct {
 
 func newBuffer(promptLen int) *buffer {
 	b := new(buffer)
-	_, b.winColumns = term.GetWinsizeInChar()
+	// TODO(jwall): Check errors?
+	_, b.winColumns, _ = tty.GetSize()
 	b.promptLen = promptLen
 	b.data = make([]rune, BufferLen, BufferCap)
 

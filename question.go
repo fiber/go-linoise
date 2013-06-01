@@ -13,8 +13,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-
-	"github.com/kless/term"
 )
 
 // Values by default
@@ -75,7 +73,7 @@ func NewQuestion() *Question {
 
 // Restores terminal settings.
 func (q *Question) RestoreTerm() {
-	term.RestoreTerm()
+	tty.Restore()
 }
 
 // ===
@@ -138,7 +136,7 @@ func (q *Question) _baseReadString(prompt, defaultAnswer string, def hasDefault)
 			if _, err := strconv.Atoi(answer); err == nil {
 				goto _error
 			}
-			if _, err := strconv.Atof64(answer); err == nil {
+			if _, err := strconv.ParseFloat(answer, 64); err == nil {
 				goto _error
 			}
 
@@ -208,7 +206,7 @@ func (q *Question) ReadIntDefault(prompt string, defaultAnswer int) (answer int,
 func (q *Question) _baseReadFloat(prompt string, defaultAnswer float64, def hasDefault) (answer float64, err error) {
 	line := q.getLine(
 		prompt,
-		strconv.Ftoa64(defaultAnswer, QuestionFloatFmt, QuestionFloatPrec),
+		strconv.FormatFloat(defaultAnswer, QuestionFloatFmt, QuestionFloatPrec, 64),
 		def,
 	)
 
@@ -221,7 +219,7 @@ func (q *Question) _baseReadFloat(prompt string, defaultAnswer float64, def hasD
 			return defaultAnswer, nil
 		}
 
-		answer, err = strconv.Atof64(input)
+		answer, err = strconv.ParseFloat(input, 64)
 		if err != nil {
 			fmt.Fprintf(output, "%s%q: the value has to be a float\r\n",
 				QuestionErrPrefix, input)
@@ -329,7 +327,7 @@ func (q *Question) ReadChoiceDefault(prompt string, a []string, defaultAnswer ui
 // It accepts "y, Y, yes, YES, Yes, n, N, no, NO, No". And values in
 // 'strconv.Atob', and 'ExtraBoolString'. Any other value returns an error.
 func atob(str string) (value bool, err error) {
-	v, err := strconv.Atob(str)
+	v, err := strconv.ParseBool(str)
 	if err == nil {
 		return v, nil
 	}

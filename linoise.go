@@ -16,6 +16,7 @@ package linoise
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 
@@ -30,16 +31,18 @@ var (
 
 // Input / Output
 var (
-	input  *os.File = os.Stdin
-	output *os.File = os.Stdout
+	input  = os.Stdin
+	output = os.Stdout
+	tty    *term.Terminal
 )
 
 // === Init
 // ===
 
 func init() {
-	if err := term.CheckIsatty(input.Fd()); err != nil {
-		panic(err)
+	var err error
+	if tty, err = term.New(); err != nil {
+		log.Fatal(err)
 	}
 }
 
@@ -58,7 +61,8 @@ type Line struct {
 
 // Gets a line type using the primary prompt by default. Sets the TTY raw mode.
 func NewLine(hist *history) *Line {
-	term.MakeRaw()
+	// TODO(jwall): check errors?
+	tty.RawMode()
 
 	buf := newBuffer(len(PS1))
 	buf.insertRunes([]rune(PS1))
@@ -76,7 +80,8 @@ func NewLine(hist *history) *Line {
 // Gets a line type using the given prompt as primary. Sets the TTY raw mode.
 // 'ansiLen' is the length of ANSI codes that the prompt could have.
 func NewLinePrompt(prompt string, ansiLen int, hist *history) *Line {
-	term.MakeRaw()
+	// TODO(jwall): check errors?
+	tty.RawMode()
 
 	buf := newBuffer(len(prompt) - ansiLen)
 	buf.insertRunes([]rune(prompt))
@@ -93,7 +98,7 @@ func NewLinePrompt(prompt string, ansiLen int, hist *history) *Line {
 
 // Restores terminal settings so it is disabled the raw mode.
 func (ln *Line) RestoreTerm() {
-	term.RestoreTerm()
+	tty.Restore()
 }
 
 // Tests if it has an history file.
@@ -140,13 +145,14 @@ func (ln *Line) Read() (line string, err error) {
 	}
 
 	// === Detect change of window size.
-	go term.TrapWinsize()
+	wSize := term.DetectWinSize()
 
 	go func() {
 		for {
-			<-term.WinsizeChan // Wait for.
+			<-wSize.Change // Wait for.
 
-			_, ln.buf.winColumns = term.GetWinsizeInChar()
+			// TODO(jwall): Check errors?
+			_, ln.buf.winColumns, _ = tty.GetSize()
 			ln.buf.refresh()
 		}
 	}()
