@@ -18,7 +18,7 @@ Features:
 
 In the first, there is to install [go-term][5]. And then:
 
-	$ goinstall github.com/kless/go-linoise/linoise
+	$ goinstall github.com/fiber/go-linoise/linoise
 
 
 ## Configuration
