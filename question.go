@@ -11,13 +11,9 @@ package linoise
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
-
-	"github.com/kless/go-term/term"
 )
-
 
 // Values by default
 var (
@@ -48,14 +44,12 @@ const (
 	_DEFAULT_MULTIPLE
 )
 
-
 // === Types
 // ===
 
 type Question struct {
 	trueString, falseString string // Strings that represent booleans.
 }
-
 
 // Gets a question type.
 func NewQuestion() *Question {
@@ -79,10 +73,10 @@ func NewQuestion() *Question {
 
 // Restores terminal settings.
 func (q *Question) RestoreTerm() {
-	term.RestoreTerm()
+	tty.Restore()
 }
-// ===
 
+// ===
 
 // Gets a line type ready to show questions.
 func (q *Question) getLine(prompt, defaultAnswer string, def hasDefault) *Line {
@@ -113,7 +107,7 @@ func (q *Question) getLine(prompt, defaultAnswer string, def hasDefault) *Line {
 }
 
 // Prints the prompt waiting to get a string not empty.
-func (q *Question) Read(prompt string) (answer string, err os.Error) {
+func (q *Question) Read(prompt string) (answer string, err error) {
 	line := q.getLine(prompt, "", _DEFAULT_NO)
 
 	for {
@@ -129,7 +123,7 @@ func (q *Question) Read(prompt string) (answer string, err os.Error) {
 }
 
 // Base to read strings.
-func (q *Question) _baseReadString(prompt, defaultAnswer string, def hasDefault) (answer string, err os.Error) {
+func (q *Question) _baseReadString(prompt, defaultAnswer string, def hasDefault) (answer string, err error) {
 	line := q.getLine(prompt, defaultAnswer, def)
 
 	for {
@@ -142,7 +136,7 @@ func (q *Question) _baseReadString(prompt, defaultAnswer string, def hasDefault)
 			if _, err := strconv.Atoi(answer); err == nil {
 				goto _error
 			}
-			if _, err := strconv.Atof64(answer); err == nil {
+			if _, err := strconv.ParseFloat(answer, 64); err == nil {
 				goto _error
 			}
 
@@ -162,18 +156,18 @@ func (q *Question) _baseReadString(prompt, defaultAnswer string, def hasDefault)
 }
 
 // Prints the prompt waiting to get a string.
-func (q *Question) ReadString(prompt string) (answer string, err os.Error) {
+func (q *Question) ReadString(prompt string) (answer string, err error) {
 	return q._baseReadString(prompt, "", _DEFAULT_NO)
 }
 
 // Prints the prompt waiting to get a string.
 // If input is nil then it returns the answer by default.
-func (q *Question) ReadStringDefault(prompt, defaultAnswer string) (answer string, err os.Error) {
+func (q *Question) ReadStringDefault(prompt, defaultAnswer string) (answer string, err error) {
 	return q._baseReadString(prompt, defaultAnswer, _DEFAULT_SIMPLE)
 }
 
 // Base to read integer numbers.
-func (q *Question) _baseReadInt(prompt string, defaultAnswer int, def hasDefault) (answer int, err os.Error) {
+func (q *Question) _baseReadInt(prompt string, defaultAnswer int, def hasDefault) (answer int, err error) {
 	line := q.getLine(prompt, strconv.Itoa(defaultAnswer), def)
 
 	for {
@@ -198,21 +192,21 @@ func (q *Question) _baseReadInt(prompt string, defaultAnswer int, def hasDefault
 }
 
 // Prints the prompt waiting to get an integer number.
-func (q *Question) ReadInt(prompt string) (answer int, err os.Error) {
+func (q *Question) ReadInt(prompt string) (answer int, err error) {
 	return q._baseReadInt(prompt, 0, _DEFAULT_NO)
 }
 
 // Prints the prompt waiting to get an integer number.
 // If input is nil then it returns the answer by default.
-func (q *Question) ReadIntDefault(prompt string, defaultAnswer int) (answer int, err os.Error) {
+func (q *Question) ReadIntDefault(prompt string, defaultAnswer int) (answer int, err error) {
 	return q._baseReadInt(prompt, defaultAnswer, _DEFAULT_SIMPLE)
 }
 
 // Base to read float numbers.
-func (q *Question) _baseReadFloat(prompt string, defaultAnswer float64, def hasDefault) (answer float64, err os.Error) {
+func (q *Question) _baseReadFloat(prompt string, defaultAnswer float64, def hasDefault) (answer float64, err error) {
 	line := q.getLine(
 		prompt,
-		strconv.Ftoa64(defaultAnswer, QuestionFloatFmt, QuestionFloatPrec),
+		strconv.FormatFloat(defaultAnswer, QuestionFloatFmt, QuestionFloatPrec, 64),
 		def,
 	)
 
@@ -225,7 +219,7 @@ func (q *Question) _baseReadFloat(prompt string, defaultAnswer float64, def hasD
 			return defaultAnswer, nil
 		}
 
-		answer, err = strconv.Atof64(input)
+		answer, err = strconv.ParseFloat(input, 64)
 		if err != nil {
 			fmt.Fprintf(output, "%s%q: the value has to be a float\r\n",
 				QuestionErrPrefix, input)
@@ -238,18 +232,18 @@ func (q *Question) _baseReadFloat(prompt string, defaultAnswer float64, def hasD
 }
 
 // Prints the prompt waiting to get a float number.
-func (q *Question) ReadFloat(prompt string) (answer float64, err os.Error) {
+func (q *Question) ReadFloat(prompt string) (answer float64, err error) {
 	return q._baseReadFloat(prompt, 0.0, _DEFAULT_NO)
 }
 
 // Prints the prompt waiting to get a float number.
 // If input is nil then it returns the answer by default.
-func (q *Question) ReadFloatDefault(prompt string, defaultAnswer float64) (answer float64, err os.Error) {
+func (q *Question) ReadFloatDefault(prompt string, defaultAnswer float64) (answer float64, err error) {
 	return q._baseReadFloat(prompt, defaultAnswer, _DEFAULT_SIMPLE)
 }
 
 // Prints the prompt waiting to get a string that represents a boolean.
-func (q *Question) ReadBool(prompt string, defaultAnswer bool) (answer bool, err os.Error) {
+func (q *Question) ReadBool(prompt string, defaultAnswer bool) (answer bool, err error) {
 	var options string
 
 	if defaultAnswer {
@@ -284,7 +278,7 @@ func (q *Question) ReadBool(prompt string, defaultAnswer bool) (answer bool, err
 }
 
 // Base to read strings from a set.
-func (q *Question) _baseReadChoice(prompt string, a []string, defaultAnswer uint) (answer string, err os.Error) {
+func (q *Question) _baseReadChoice(prompt string, a []string, defaultAnswer uint) (answer string, err error) {
 	// Saves the value without ANSI to get it when it's set the answer by default.
 	def := a[defaultAnswer]
 	a[defaultAnswer] = setBold + def + setOff
@@ -311,14 +305,14 @@ func (q *Question) _baseReadChoice(prompt string, a []string, defaultAnswer uint
 
 // Prints the prompt waiting to get an element from array `a`.
 // If input is nil then it returns the first element of `a`.
-func (q *Question) ReadChoice(prompt string, a []string) (answer string, err os.Error) {
+func (q *Question) ReadChoice(prompt string, a []string) (answer string, err error) {
 	return q._baseReadChoice(prompt, a, 0)
 }
 
 // Prints the prompt waiting to get an element from array `a`.
 // If input is nil then it returns the answer by default which is the position
 // inner array.
-func (q *Question) ReadChoiceDefault(prompt string, a []string, defaultAnswer uint) (answer string, err os.Error) {
+func (q *Question) ReadChoiceDefault(prompt string, a []string, defaultAnswer uint) (answer string, err error) {
 	if defaultAnswer >= uint(len(a)) {
 		panic(fmt.Sprintf("ReadChoiceDefault: element %d is not in array",
 			defaultAnswer))
@@ -326,15 +320,14 @@ func (q *Question) ReadChoiceDefault(prompt string, a []string, defaultAnswer ui
 	return q._baseReadChoice(prompt, a, defaultAnswer)
 }
 
-
 // === Utility
 // ===
 
 // Returns the boolean value represented by the string.
 // It accepts "y, Y, yes, YES, Yes, n, N, no, NO, No". And values in
 // 'strconv.Atob', and 'ExtraBoolString'. Any other value returns an error.
-func atob(str string) (value bool, err os.Error) {
-	v, err := strconv.Atob(str)
+func atob(str string) (value bool, err error) {
+	v, err := strconv.ParseBool(str)
 	if err == nil {
 		return v, nil
 	}
@@ -354,4 +347,3 @@ func atob(str string) (value bool, err os.Error) {
 
 	return false, err // Return error of 'strconv.Atob'
 }
-

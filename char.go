@@ -1,12 +1,11 @@
 package linoise
 
-
 // Characters
 var (
 	_CR    = []byte{13}     // Carriage return -- \r
 	_CR_LF = []byte{13, 10} // CR+LF is used for a new line in raw mode -- \r\n
-	ctrlC  = []int("^C")
-	ctrlD  = []int("^D")
+	ctrlC  = []rune("^C")
+	ctrlD  = []rune("^D")
 )
 
 // ANSI terminal escape controls
@@ -35,4 +34,3 @@ var (
 	//insertChar  = []byte("\033[@")   // Insert CHaracter
 	//setLineWrap = []byte("\033[?7h") // Enable Line Wrap
 )
-

@@ -11,10 +11,8 @@ package linoise
 
 import (
 	"fmt"
-	"os"
 	"testing"
 )
-
 
 func TestQuest(t *testing.T) {
 	// === To handle boolean strings in french
@@ -55,11 +53,10 @@ func TestQuest(t *testing.T) {
 	}
 }
 
-func print(a interface{}, err os.Error) {
+func print(a interface{}, err error) {
 	if err == nil {
 		fmt.Printf("  answer: %v\r\n", a)
 	} else if err != ErrCtrlD {
-		fmt.Printf(err.String() + "\r\n")
+		fmt.Printf(err.Error() + "\r\n")
 	}
 }
-

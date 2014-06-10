@@ -12,19 +12,19 @@ package linoise
 import (
 	"bufio"
 	"container/list"
+	"fmt"
+	"io"
 	"log"
 	"os"
 	"strconv"
 	"strings"
 )
 
-
 // Values by default
 var (
-	HistoryCap  = 500         // Capacity
+	HistoryCap         = 500  // Capacity
 	HistoryPerm uint32 = 0600 // History file permission
 )
-
 
 // === Type
 // ===
@@ -37,10 +37,9 @@ type history struct {
 	li       *list.List
 }
 
-
 // Base to create an history file.
-func _baseHistory(fname string, size int) (*history, os.Error) {
-	file, err := os.OpenFile(fname, os.O_CREATE|os.O_RDWR, HistoryPerm)
+func _baseHistory(fname string, size int) (*history, error) {
+	file, err := os.OpenFile(fname, os.O_CREATE|os.O_RDWR, os.ModePerm)
 	if err != nil {
 		return nil, err
 	}
@@ -55,20 +54,19 @@ func _baseHistory(fname string, size int) (*history, os.Error) {
 }
 
 // Creates a new history using the maximum length by default.
-func NewHistory(filename string) (*history, os.Error) {
+func NewHistory(filename string) (*history, error) {
 	return _baseHistory(filename, HistoryCap)
 }
 
 // Creates a new history whose buffer has the specified size, which must be
 // greater than zero.
-func NewHistorySize(filename string, size int) (*history, os.Error) {
+func NewHistorySize(filename string, size int) (*history, error) {
 	if size <= 0 {
-		return nil, os.NewError("wrong history size: " + strconv.Itoa(size))
+		return nil, fmt.Errorf("wrong history size: " + strconv.Itoa(size))
 	}
 
 	return _baseHistory(filename, size)
 }
-
 
 // === Access to file
 // ===
@@ -79,7 +77,7 @@ func (h *history) Load() {
 
 	for {
 		line, err := in.ReadString('\n')
-		if err == os.EOF {
+		if err == io.EOF {
 			break
 		}
 
@@ -92,7 +90,7 @@ func (h *history) Load() {
 // Saves all lines to the text file, excep when:
 // + it starts with some space
 // + it is an empty line
-func (h *history) Save() (err os.Error) {
+func (h *history) Save() (err error) {
 	if _, err = h.file.Seek(0, 0); err != nil {
 		return
 	}
@@ -145,7 +143,6 @@ func (h *history) closeFile() {
 }*/
 // ===
 
-
 // Adds a new line to the buffer.
 func (h *history) Add(line string) {
 	if h.li.Len() <= h.Cap {
@@ -156,7 +153,7 @@ func (h *history) Add(line string) {
 }
 
 // Base to move between lines.
-func (h *history) _baseNextPrev(c byte) (line []int, err os.Error) {
+func (h *history) _baseNextPrev(c byte) (line []rune, err error) {
 	if h.li.Len() <= 0 {
 		return line, ErrEmptyHist
 	}
@@ -176,16 +173,15 @@ func (h *history) _baseNextPrev(c byte) (line []int, err os.Error) {
 		return nil, ErrNilElement
 	}
 
-	return []int(new.Value.(string)), nil
+	return []rune(new.Value.(string)), nil
 }
 
 // Returns the previous line.
-func (h *history) Prev() (line []int, err os.Error) {
+func (h *history) Prev() (line []rune, err error) {
 	return h._baseNextPrev('p')
 }
 
 // Returns the next line.
-func (h *history) Next() (line []int, err os.Error) {
+func (h *history) Next() (line []rune, err error) {
 	return h._baseNextPrev('n')
 }
-
